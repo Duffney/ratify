@@ -41,6 +41,11 @@ type KubeRefresher struct {
 	Result  ctrl.Result
 }
 
+func init() {
+	// register kubeRefresher factory
+	Register("kubeRefresher", &KubeRefresher{})
+}
+
 func (kr *KubeRefresher) Refresh(ctx context.Context) error {
 	logger := logrus.WithContext(ctx)
 
@@ -137,6 +142,27 @@ func (kr *KubeRefresher) Refresh(ctx context.Context) error {
 	kr.Result = ctrl.Result{RequeueAfter: intervalDuration}
 
 	return nil
+}
+
+func (kr *KubeRefresher) GetResult() interface{} {
+	return kr.Result
+}
+
+func (kr *KubeRefresher) Create(config map[string]interface{}) (Refresher, error) {
+	client, ok := config["client"].(client.Client)
+	if !ok {
+		return nil, fmt.Errorf("client is required in config")
+	}
+
+	request, ok := config["request"].(ctrl.Request)
+	if !ok {
+		return nil, fmt.Errorf("request is required in config")
+	}
+
+	return &KubeRefresher{
+		Client:  client,
+		Request: request,
+	}, nil
 }
 
 func writeKMProviderStatus(ctx context.Context, r client.StatusClient, keyManagementProvider *configv1beta1.KeyManagementProvider, logger *logrus.Entry, isSuccess bool, errorString string, operationTime metav1.Time, kmProviderStatus kmp.KeyManagementProviderStatus) {

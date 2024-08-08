@@ -40,6 +40,10 @@ type KubeRefresherNamespaced struct {
 	Result  ctrl.Result
 }
 
+func init() {
+	Register("kubeRefresherNamespaced", &KubeRefresherNamespaced{})
+}
+
 func (kr *KubeRefresherNamespaced) Refresh(ctx context.Context) error {
 	logger := logrus.WithContext(ctx)
 
@@ -134,6 +138,27 @@ func (kr *KubeRefresherNamespaced) Refresh(ctx context.Context) error {
 	kr.Result = ctrl.Result{RequeueAfter: intervalDuration}
 
 	return nil
+}
+
+func (kr *KubeRefresherNamespaced) GetResult() interface{} {
+	return kr.Result
+}
+
+func (kr *KubeRefresherNamespaced) Create(config map[string]interface{}) (Refresher, error) {
+	client, ok := config["client"].(client.Client)
+	if !ok {
+		return nil, fmt.Errorf("client is required in config")
+	}
+
+	request, ok := config["request"].(ctrl.Request)
+	if !ok {
+		return nil, fmt.Errorf("request is required in config")
+	}
+
+	return &KubeRefresherNamespaced{
+		Client:  client,
+		Request: request,
+	}, nil
 }
 
 // writeKMProviderStatus updates the status of the key management provider resource

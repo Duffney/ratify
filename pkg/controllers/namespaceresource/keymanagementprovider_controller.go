@@ -36,21 +36,29 @@ type KeyManagementProviderReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders/finalizers,verbs=update
-func (r *KeyManagementProviderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	kr := refresh.KubeRefresherNamespaced{
-		Client:  r.Client,
-		Request: req,
+func (r *KeyManagementProviderReconciler) ReconcileWithConfig(ctx context.Context, config map[string]interface{}) (ctrl.Result, error) {
+	refresher, err := refresh.CreateRefresherFromConfig(config)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-
-	err := kr.Refresh(ctx)
+	err = refresher.Refresh(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return kr.Result, nil
+	return refresher.GetResult().(ctrl.Result), nil
+}
+
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=namespacedkeymanagementproviders/finalizers,verbs=update
+func (r *KeyManagementProviderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	refresherConfig := map[string]interface{}{
+		"type":    "kubeRefresherNamespaced",
+		"client":  r.Client,
+		"request": req,
+	}
+	return r.ReconcileWithConfig(ctx, refresherConfig)
 }
 
 // SetupWithManager sets up the controller with the Manager.

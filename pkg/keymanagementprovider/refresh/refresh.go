@@ -22,4 +22,5 @@ import (
 
 type Refresher interface {
 	Refresh(ctx context.Context) error
+	GetResult() interface{}
 }

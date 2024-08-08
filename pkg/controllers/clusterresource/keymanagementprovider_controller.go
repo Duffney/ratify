@@ -18,7 +18,6 @@ package clusterresource
 
 import (
 	"context"
-	"fmt"
 
 	_ "github.com/ratify-project/ratify/pkg/keymanagementprovider/azurekeyvault" // register azure key vault key management provider
 	_ "github.com/ratify-project/ratify/pkg/keymanagementprovider/inline"        // register inline key management provider
@@ -37,26 +36,29 @@ type KeyManagementProviderReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders/finalizers,verbs=update
-func (r *KeyManagementProviderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	kr := refresh.KubeRefresher{
-		Client:  r.Client,
-		Request: req,
+func (r *KeyManagementProviderReconciler) ReconcileWithConfig(ctx context.Context, config map[string]interface{}) (ctrl.Result, error) {
+	refresher, err := refresh.CreateRefresherFromConfig(config)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
-
-	// check if kr.client is nil
-	if kr.Client == nil {
-		return ctrl.Result{}, fmt.Errorf("client is nil")
-	}
-
-	err := kr.Refresh(ctx)
+	err = refresher.Refresh(ctx)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
-	return kr.Result, nil
+	return refresher.GetResult().(ctrl.Result), nil
+}
+
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=config.ratify.deislabs.io,resources=keymanagementproviders/finalizers,verbs=update
+func (r *KeyManagementProviderReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	refresherConfig := map[string]interface{}{
+		"type":    "kubeRefresher",
+		"client":  r.Client,
+		"request": req,
+	}
+	return r.ReconcileWithConfig(ctx, refresherConfig)
 }
 
 // SetupWithManager sets up the controller with the Manager.
