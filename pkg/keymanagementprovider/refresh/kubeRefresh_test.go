@@ -73,8 +73,8 @@ func TestKubeRefresher_Refresh_Disabled(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.KeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "",
+			Type:            "test-kmp",
+			RefreshInterval: "",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},
@@ -105,8 +105,8 @@ func TestKubeRefresher_Refresh_refreshable(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.KeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "1m",
+			Type:            "test-kmp",
+			RefreshInterval: "1m",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},
@@ -138,8 +138,8 @@ func TestKubeRefresher_Refresh_invalidInterval(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.KeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "1mm",
+			Type:            "test-kmp",
+			RefreshInterval: "1mm",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},

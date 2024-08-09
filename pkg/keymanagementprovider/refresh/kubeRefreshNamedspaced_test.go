@@ -71,8 +71,8 @@ func TestKubeRefresherNamespaced_Refresh_Disabled(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "",
+			Type:            "test-kmp",
+			RefreshInterval: "",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},
@@ -102,8 +102,8 @@ func TestKubeRefresherNamespaced_Refresh_refreshable(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "1m",
+			Type:            "test-kmp",
+			RefreshInterval: "1m",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},
@@ -135,8 +135,8 @@ func TestKubeRefresherNamespaced_Refresh_invalidInterval(t *testing.T) {
 			Name:      "kmpName",
 		},
 		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:     "test-kmp",
-			Interval: "1mm",
+			Type:            "test-kmp",
+			RefreshInterval: "1mm",
 			Parameters: runtime.RawExtension{
 				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
 			},
@@ -193,8 +193,8 @@ func TestKubeRefresherNamespaced_Refresh(t *testing.T) {
 					Name:      "kmpName",
 				},
 				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-					Type:     "inline",
-					Interval: "1m",
+					Type:            "inline",
+					RefreshInterval: "1m",
 					Parameters: runtime.RawExtension{
 						Raw: []byte(`{"type": "inline", "contentType": "certificate", "value": "-----BEGIN CERTIFICATE-----\nMIID2jCCAsKgAwIBAgIQXy2VqtlhSkiZKAGhsnkjbDANBgkqhkiG9w0BAQsFADBvMRswGQYDVQQD\nExJyYXRpZnkuZXhhbXBsZS5jb20xDzANBgNVBAsTBk15IE9yZzETMBEGA1UEChMKTXkgQ29tcGFu\neTEQMA4GA1UEBxMHUmVkbW9uZDELMAkGA1UECBMCV0ExCzAJBgNVBAYTAlVTMB4XDTIzMDIwMTIy\nNDUwMFoXDTI0MDIwMTIyNTUwMFowbzEbMBkGA1UEAxMScmF0aWZ5LmV4YW1wbGUuY29tMQ8wDQYD\nVQQLEwZNeSBPcmcxEzARBgNVBAoTCk15IENvbXBhbnkxEDAOBgNVBAcTB1JlZG1vbmQxCzAJBgNV\nBAgTAldBMQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL10bM81\npPAyuraORABsOGS8M76Bi7Guwa3JlM1g2D8CuzSfSTaaT6apy9GsccxUvXd5cmiP1ffna5z+EFmc\nizFQh2aq9kWKWXDvKFXzpQuhyqD1HeVlRlF+V0AfZPvGt3VwUUjNycoUU44ctCWmcUQP/KShZev3\n6SOsJ9q7KLjxxQLsUc4mg55eZUThu8mGB8jugtjsnLUYvIWfHhyjVpGrGVrdkDMoMn+u33scOmrt\nsBljvq9WVo4T/VrTDuiOYlAJFMUae2Ptvo0go8XTN3OjLblKeiK4C+jMn9Dk33oGIT9pmX0vrDJV\nX56w/2SejC1AxCPchHaMuhlwMpftBGkCAwEAAaNyMHAwDgYDVR0PAQH/BAQDAgeAMAkGA1UdEwQC\nMAAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwHwYDVR0jBBgwFoAU0eaKkZj+MS9jCp9Dg1zdv3v/aKww\nHQYDVR0OBBYEFNHmipGY/jEvYwqfQ4Nc3b97/2isMA0GCSqGSIb3DQEBCwUAA4IBAQBNDcmSBizF\nmpJlD8EgNcUCy5tz7W3+AAhEbA3vsHP4D/UyV3UgcESx+L+Nye5uDYtTVm3lQejs3erN2BjW+ds+\nXFnpU/pVimd0aYv6mJfOieRILBF4XFomjhrJOLI55oVwLN/AgX6kuC3CJY2NMyJKlTao9oZgpHhs\nLlxB/r0n9JnUoN0Gq93oc1+OLFjPI7gNuPXYOP1N46oKgEmAEmNkP1etFrEjFRgsdIFHksrmlOlD\nIed9RcQ087VLjmuymLgqMTFX34Q3j7XgN2ENwBSnkHotE9CcuGRW+NuiOeJalL8DBmFXXWwHTKLQ\nPp5g6m1yZXylLJaFLKz7tdMmO355\n-----END CERTIFICATE-----\n"}`),
 					},

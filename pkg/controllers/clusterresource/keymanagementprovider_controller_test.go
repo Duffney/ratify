@@ -89,7 +89,7 @@ type MockRefresher struct {
 	ShouldError bool
 }
 
-func (mr *MockRefresher) Refresh(ctx context.Context) error {
+func (mr *MockRefresher) Refresh(_ context.Context) error {
 	if mr.ShouldError {
 		return errors.New("refresh error")
 	}
