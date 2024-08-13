@@ -18,6 +18,7 @@ package refresh
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -33,168 +34,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestKubeRefresherNamespaced_Refresh_notRefreshable(t *testing.T) {
-	provider := &configv1beta1.NamespacedKeyManagementProvider{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type: "inline",
-			Parameters: runtime.RawExtension{
-				Raw: []byte(`{"type": "inline", "contentType": "certificate", "value": "-----BEGIN CERTIFICATE-----\nMIID2jCCAsKgAwIBAgIQXy2VqtlhSkiZKAGhsnkjbDANBgkqhkiG9w0BAQsFADBvMRswGQYDVQQD\nExJyYXRpZnkuZXhhbXBsZS5jb20xDzANBgNVBAsTBk15IE9yZzETMBEGA1UEChMKTXkgQ29tcGFu\neTEQMA4GA1UEBxMHUmVkbW9uZDELMAkGA1UECBMCV0ExCzAJBgNVBAYTAlVTMB4XDTIzMDIwMTIy\nNDUwMFoXDTI0MDIwMTIyNTUwMFowbzEbMBkGA1UEAxMScmF0aWZ5LmV4YW1wbGUuY29tMQ8wDQYD\nVQQLEwZNeSBPcmcxEzARBgNVBAoTCk15IENvbXBhbnkxEDAOBgNVBAcTB1JlZG1vbmQxCzAJBgNV\nBAgTAldBMQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL10bM81\npPAyuraORABsOGS8M76Bi7Guwa3JlM1g2D8CuzSfSTaaT6apy9GsccxUvXd5cmiP1ffna5z+EFmc\nizFQh2aq9kWKWXDvKFXzpQuhyqD1HeVlRlF+V0AfZPvGt3VwUUjNycoUU44ctCWmcUQP/KShZev3\n6SOsJ9q7KLjxxQLsUc4mg55eZUThu8mGB8jugtjsnLUYvIWfHhyjVpGrGVrdkDMoMn+u33scOmrt\nsBljvq9WVo4T/VrTDuiOYlAJFMUae2Ptvo0go8XTN3OjLblKeiK4C+jMn9Dk33oGIT9pmX0vrDJV\nX56w/2SejC1AxCPchHaMuhlwMpftBGkCAwEAAaNyMHAwDgYDVR0PAQH/BAQDAgeAMAkGA1UdEwQC\nMAAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwHwYDVR0jBBgwFoAU0eaKkZj+MS9jCp9Dg1zdv3v/aKww\nHQYDVR0OBBYEFNHmipGY/jEvYwqfQ4Nc3b97/2isMA0GCSqGSIb3DQEBCwUAA4IBAQBNDcmSBizF\nmpJlD8EgNcUCy5tz7W3+AAhEbA3vsHP4D/UyV3UgcESx+L+Nye5uDYtTVm3lQejs3erN2BjW+ds+\nXFnpU/pVimd0aYv6mJfOieRILBF4XFomjhrJOLI55oVwLN/AgX6kuC3CJY2NMyJKlTao9oZgpHhs\nLlxB/r0n9JnUoN0Gq93oc1+OLFjPI7gNuPXYOP1N46oKgEmAEmNkP1etFrEjFRgsdIFHksrmlOlD\nIed9RcQ087VLjmuymLgqMTFX34Q3j7XgN2ENwBSnkHotE9CcuGRW+NuiOeJalL8DBmFXXWwHTKLQ\nPp5g6m1yZXylLJaFLKz7tdMmO355\n-----END CERTIFICATE-----\n"}`),
-			},
-		},
-	}
-	request := ctrl.Request{
-		NamespacedName: client.ObjectKey{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-	}
-	scheme, _ := test.CreateScheme()
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(provider).Build()
-	kr := &KubeRefresherNamespaced{
-		Client:  client,
-		Request: request,
-	}
-	err := kr.Refresh(context.Background())
-	if kr.Result.RequeueAfter != 0 {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
-func TestKubeRefresherNamespaced_Refresh_Disabled(t *testing.T) {
-	provider := &configv1beta1.NamespacedKeyManagementProvider{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:            "test-kmp",
-			RefreshInterval: "",
-			Parameters: runtime.RawExtension{
-				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
-			},
-		},
-	}
-	request := ctrl.Request{
-		NamespacedName: client.ObjectKey{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-	}
-	scheme, _ := test.CreateScheme()
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(provider).Build()
-	kr := &KubeRefresherNamespaced{
-		Client:  client,
-		Request: request,
-	}
-	err := kr.Refresh(context.Background())
-	if kr.Result.RequeueAfter != 0 && kr.Result.Requeue == false {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-func TestKubeRefresherNamespaced_Refresh_refreshable(t *testing.T) {
-	provider := &configv1beta1.NamespacedKeyManagementProvider{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:            "test-kmp",
-			RefreshInterval: "1m",
-			Parameters: runtime.RawExtension{
-				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
-			},
-		},
-	}
-	request := ctrl.Request{
-		NamespacedName: client.ObjectKey{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-	}
-	scheme, _ := test.CreateScheme()
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(provider).Build()
-	kr := &KubeRefresherNamespaced{
-		Client:  client,
-		Request: request,
-	}
-	err := kr.Refresh(context.Background())
-	duration, _ := time.ParseDuration("1m")
-	if kr.Result.RequeueAfter != duration {
-		t.Fatalf("Unexpected error: %v", err)
-	}
-}
-
-func TestKubeRefresherNamespaced_Refresh_invalidInterval(t *testing.T) {
-	provider := &configv1beta1.NamespacedKeyManagementProvider{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-		Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-			Type:            "test-kmp",
-			RefreshInterval: "1mm",
-			Parameters: runtime.RawExtension{
-				Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
-			},
-		},
-	}
-	request := ctrl.Request{
-		NamespacedName: client.ObjectKey{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-	}
-	scheme, _ := test.CreateScheme()
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(provider).Build()
-	kr := &KubeRefresherNamespaced{
-		Client:  client,
-		Request: request,
-	}
-	err := kr.Refresh(context.Background())
-	if err == nil {
-		t.Fatalf("Expected error but got nil")
-	}
-}
-
-func TestKubeRefresherNamespaced_Refresh_UnableToFetchKMP(t *testing.T) {
-	request := ctrl.Request{
-		NamespacedName: client.ObjectKey{
-			Namespace: "",
-			Name:      "kmpName",
-		},
-	}
-	client := mocks.TestClient{}
-	kr := &KubeRefresherNamespaced{
-		Client:  client,
-		Request: request,
-	}
-	err := kr.Refresh(context.Background())
-	if err == nil {
-		t.Fatalf("Expected error but got nil")
-	}
-}
-
 func TestKubeRefresherNamespaced_Refresh(t *testing.T) {
 	tests := []struct {
-		name     string
-		provider *configv1beta1.NamespacedKeyManagementProvider
-		request  ctrl.Request
-		wantErr  bool
+		name           string
+		provider       *configv1beta1.NamespacedKeyManagementProvider
+		request        ctrl.Request
+		mockClient     bool
+		expectedResult ctrl.Result
+		expectedError  bool
 	}{
 		{
-			name: "valid params",
+			name: "Non-refreshable",
 			provider: &configv1beta1.NamespacedKeyManagementProvider{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "testNamespace",
+					Namespace: "",
 					Name:      "kmpName",
 				},
 				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-					Type:            "inline",
-					RefreshInterval: "1m",
+					Type: "inline",
 					Parameters: runtime.RawExtension{
 						Raw: []byte(`{"type": "inline", "contentType": "certificate", "value": "-----BEGIN CERTIFICATE-----\nMIID2jCCAsKgAwIBAgIQXy2VqtlhSkiZKAGhsnkjbDANBgkqhkiG9w0BAQsFADBvMRswGQYDVQQD\nExJyYXRpZnkuZXhhbXBsZS5jb20xDzANBgNVBAsTBk15IE9yZzETMBEGA1UEChMKTXkgQ29tcGFu\neTEQMA4GA1UEBxMHUmVkbW9uZDELMAkGA1UECBMCV0ExCzAJBgNVBAYTAlVTMB4XDTIzMDIwMTIy\nNDUwMFoXDTI0MDIwMTIyNTUwMFowbzEbMBkGA1UEAxMScmF0aWZ5LmV4YW1wbGUuY29tMQ8wDQYD\nVQQLEwZNeSBPcmcxEzARBgNVBAoTCk15IENvbXBhbnkxEDAOBgNVBAcTB1JlZG1vbmQxCzAJBgNV\nBAgTAldBMQswCQYDVQQGEwJVUzCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAL10bM81\npPAyuraORABsOGS8M76Bi7Guwa3JlM1g2D8CuzSfSTaaT6apy9GsccxUvXd5cmiP1ffna5z+EFmc\nizFQh2aq9kWKWXDvKFXzpQuhyqD1HeVlRlF+V0AfZPvGt3VwUUjNycoUU44ctCWmcUQP/KShZev3\n6SOsJ9q7KLjxxQLsUc4mg55eZUThu8mGB8jugtjsnLUYvIWfHhyjVpGrGVrdkDMoMn+u33scOmrt\nsBljvq9WVo4T/VrTDuiOYlAJFMUae2Ptvo0go8XTN3OjLblKeiK4C+jMn9Dk33oGIT9pmX0vrDJV\nX56w/2SejC1AxCPchHaMuhlwMpftBGkCAwEAAaNyMHAwDgYDVR0PAQH/BAQDAgeAMAkGA1UdEwQC\nMAAwEwYDVR0lBAwwCgYIKwYBBQUHAwMwHwYDVR0jBBgwFoAU0eaKkZj+MS9jCp9Dg1zdv3v/aKww\nHQYDVR0OBBYEFNHmipGY/jEvYwqfQ4Nc3b97/2isMA0GCSqGSIb3DQEBCwUAA4IBAQBNDcmSBizF\nmpJlD8EgNcUCy5tz7W3+AAhEbA3vsHP4D/UyV3UgcESx+L+Nye5uDYtTVm3lQejs3erN2BjW+ds+\nXFnpU/pVimd0aYv6mJfOieRILBF4XFomjhrJOLI55oVwLN/AgX6kuC3CJY2NMyJKlTao9oZgpHhs\nLlxB/r0n9JnUoN0Gq93oc1+OLFjPI7gNuPXYOP1N46oKgEmAEmNkP1etFrEjFRgsdIFHksrmlOlD\nIed9RcQ087VLjmuymLgqMTFX34Q3j7XgN2ENwBSnkHotE9CcuGRW+NuiOeJalL8DBmFXXWwHTKLQ\nPp5g6m1yZXylLJaFLKz7tdMmO355\n-----END CERTIFICATE-----\n"}`),
 					},
@@ -202,60 +59,173 @@ func TestKubeRefresherNamespaced_Refresh(t *testing.T) {
 			},
 			request: ctrl.Request{
 				NamespacedName: client.ObjectKey{
-					Namespace: "testNamespace",
+					Namespace: "",
 					Name:      "kmpName",
 				},
 			},
-			wantErr: false,
+			expectedResult: ctrl.Result{},
+			expectedError:  false,
 		},
 		{
-			name: "nonexistent KMP",
+			name: "Disabled",
 			provider: &configv1beta1.NamespacedKeyManagementProvider{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "testNamespace",
+					Namespace: "",
 					Name:      "kmpName",
 				},
 				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-					Type: "inline",
+					Type:            "test-kmp",
+					RefreshInterval: "",
+					Parameters: runtime.RawExtension{
+						Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
+					},
 				},
 			},
 			request: ctrl.Request{
 				NamespacedName: client.ObjectKey{
-					Name: "nonexistent",
+					Namespace: "",
+					Name:      "kmpName",
 				},
 			},
-			wantErr: false,
+			expectedResult: ctrl.Result{},
+			expectedError:  false,
 		},
 		{
-			name: "invalid params",
+			name: "Refreshable",
 			provider: &configv1beta1.NamespacedKeyManagementProvider{
 				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "testNamespace",
+					Namespace: "",
 					Name:      "kmpName",
 				},
 				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
-					Type: "inline",
+					Type:            "test-kmp",
+					RefreshInterval: "1m",
+					Parameters: runtime.RawExtension{
+						Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
+					},
 				},
 			},
 			request: ctrl.Request{
 				NamespacedName: client.ObjectKey{
-					Namespace: "testNamespace",
+					Namespace: "",
 					Name:      "kmpName",
 				},
 			},
-			wantErr: true,
+			expectedResult: ctrl.Result{RequeueAfter: time.Minute},
+			expectedError:  false,
+		},
+		{
+			name: "Invalid Interval",
+			provider: &configv1beta1.NamespacedKeyManagementProvider{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "",
+					Name:      "kmpName",
+				},
+				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
+					Type:            "",
+					RefreshInterval: "1mm",
+					Parameters: runtime.RawExtension{
+						Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
+					},
+				},
+			},
+			request: ctrl.Request{
+				NamespacedName: client.ObjectKey{
+					Namespace: "",
+					Name:      "kmpName",
+				},
+			},
+			expectedResult: ctrl.Result{},
+			expectedError:  true,
+		},
+		{
+			name: "IsNotFound",
+			provider: &configv1beta1.NamespacedKeyManagementProvider{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "",
+					Name:      "kmpName",
+				},
+				Spec: configv1beta1.NamespacedKeyManagementProviderSpec{
+					Type:            "",
+					RefreshInterval: "",
+					Parameters: runtime.RawExtension{
+						Raw: []byte(`{"vaultURI": "https://yourkeyvault.vault.azure.net/", "certificates": [{"name": "cert1", "version": "1"}], "tenantID": "yourtenantID", "clientID": "yourclientID"}`),
+					},
+				},
+			},
+			expectedResult: ctrl.Result{},
+			expectedError:  false,
+		},
+		{
+			name:          "UnableToFetchKMP",
+			mockClient:    true,
+			expectedError: true,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			scheme, _ := test.CreateScheme()
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.provider).Build()
+			var client client.Client
+
+			if tt.mockClient {
+				client = mocks.TestClient{}
+			} else {
+				scheme, _ := test.CreateScheme()
+				client = fake.NewClientBuilder().WithScheme(scheme).WithObjects(tt.provider).Build()
+			}
+
 			kr := &KubeRefresherNamespaced{
 				Client:  client,
 				Request: tt.request,
 			}
-			if err := kr.Refresh(context.Background()); (err != nil) != tt.wantErr {
-				t.Errorf("KubeRefresherNamespaced.Refresh() error = %v, wantErr %v", err, tt.wantErr)
+			err := kr.Refresh(context.Background())
+			result := kr.GetResult()
+			if !reflect.DeepEqual(result, tt.expectedResult) {
+				t.Fatalf("Expected nil but got %v with error %v", result, err)
+			}
+			if tt.expectedError && err == nil {
+				t.Fatalf("Expected error but got nil")
+			}
+		})
+	}
+}
+
+func TestKubeRefresherNamespaced_Create(t *testing.T) {
+	tests := []struct {
+		name          string
+		config        map[string]interface{}
+		expectedError bool
+	}{
+		{
+			name: "Success",
+			config: map[string]interface{}{
+				"client":  &mocks.TestClient{},
+				"request": ctrl.Request{},
+			},
+			expectedError: false,
+		},
+		{
+			name: "ClientMissing",
+			config: map[string]interface{}{
+				"request": ctrl.Request{},
+			},
+			expectedError: true,
+		},
+		{
+			name: "RequestMissing",
+			config: map[string]interface{}{
+				"client": &mocks.TestClient{},
+			},
+			expectedError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			kr := &KubeRefresherNamespaced{}
+			_, err := kr.Create(tt.config)
+			if tt.expectedError && err == nil {
+				t.Fatalf("Expected error but got nil")
 			}
 		})
 	}

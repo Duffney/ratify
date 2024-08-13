@@ -18,6 +18,7 @@ package namespaceresource
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"github.com/ratify-project/ratify/pkg/keymanagementprovider/refresh"
@@ -28,26 +29,34 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestKeyManagementProviderReconciler_Reconcile(t *testing.T) {
+func TestKeyManagementProviderReconciler_ReconcileWithConfig(t *testing.T) {
 	tests := []struct {
-		name          string
-		refresherType string
-		expectedError bool
+		name              string
+		refresherType     string
+		createConfigError bool
+		refreshError      bool
+		expectedError     bool
 	}{
 		{
-			name:          "Successful Reconcile",
-			refresherType: "mockRefresher",
-			expectedError: false,
+			name:              "Successful Reconcile",
+			refresherType:     "mockRefresher",
+			createConfigError: false,
+			refreshError:      false,
+			expectedError:     false,
 		},
 		{
-			name:          "Refresher Error",
-			refresherType: "mockRefresher",
-			expectedError: true,
+			name:              "Refresher Error",
+			refresherType:     "mockRefresher",
+			createConfigError: false,
+			refreshError:      true,
+			expectedError:     true,
 		},
 		{
-			name:          "Invalid Refresher Type",
-			refresherType: "invalidRefresher",
-			expectedError: true,
+			name:              "Invalid Refresher Type",
+			refresherType:     "invalidRefresher",
+			createConfigError: true,
+			refreshError:      false,
+			expectedError:     true,
 		},
 	}
 	for _, tt := range tests {
@@ -67,10 +76,12 @@ func TestKeyManagementProviderReconciler_Reconcile(t *testing.T) {
 			}
 
 			refresherConfig := map[string]interface{}{
-				"type":        tt.refresherType,
-				"client":      client,
-				"request":     req,
-				"shouldError": tt.expectedError,
+				"type":              tt.refresherType,
+				"client":            client,
+				"request":           req,
+				"createConfigError": tt.createConfigError,
+				"refreshError":      tt.refreshError,
+				"shouldError":       tt.expectedError,
 			}
 
 			_, err := r.ReconcileWithConfig(context.TODO(), refresherConfig)
@@ -84,13 +95,45 @@ func TestKeyManagementProviderReconciler_Reconcile(t *testing.T) {
 	}
 }
 
+func TestKeyManagementProviderReconciler_Reconcile(t *testing.T) {
+	req := ctrl.Request{
+		NamespacedName: client.ObjectKey{
+			Name:      "fake-name",
+			Namespace: "fake-namespace",
+		},
+	}
+
+	// Create a fake client and scheme
+	scheme, _ := test.CreateScheme()
+	client := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	r := &KeyManagementProviderReconciler{
+		Client: client,
+		Scheme: runtime.NewScheme(),
+	}
+
+	// Call the Reconcile method
+	result, err := r.Reconcile(context.TODO(), req)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	// Check the result
+	expectedResult := ctrl.Result{}
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("Expected result %v, got %v", expectedResult, result)
+	}
+}
+
 type MockRefresher struct {
-	Results     ctrl.Result
-	ShouldError bool
+	Results           ctrl.Result
+	CreateConfigError bool
+	RefreshError      bool
+	ShouldError       bool
 }
 
 func (mr *MockRefresher) Refresh(_ context.Context) error {
-	if mr.ShouldError {
+	if mr.RefreshError {
 		return errors.New("refresh error")
 	}
 	return nil
@@ -101,12 +144,14 @@ func (mr *MockRefresher) GetResult() interface{} {
 }
 
 func (mr *MockRefresher) Create(config map[string]interface{}) (refresh.Refresher, error) {
-	shouldError := config["shouldError"].(bool)
-	if shouldError {
+	createConfigError := config["shouldError"].(bool)
+	refreshError := config["refreshError"].(bool)
+	if createConfigError {
 		return nil, errors.New("create error")
 	}
 	return &MockRefresher{
-		ShouldError: shouldError,
+		CreateConfigError: createConfigError,
+		RefreshError:      refreshError,
 	}, nil
 }
 
