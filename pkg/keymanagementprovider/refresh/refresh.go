@@ -20,7 +20,10 @@ import (
 	"context"
 )
 
+// Refresher is an interface that defines methods to be implemented by a each refresher
 type Refresher interface {
+	// Refresh is a method that refreshes the certificates/keys
 	Refresh(ctx context.Context) error
+	// GetResult is a method that returns the result of the refresh
 	GetResult() interface{}
 }

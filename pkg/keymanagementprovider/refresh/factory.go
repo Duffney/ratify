@@ -20,9 +20,11 @@ import "fmt"
 var refresherFactories = make(map[string]RefresherFactory)
 
 type RefresherFactory interface {
+	// Create creates a new instance of the refresher using the provided configuration
 	Create(config map[string]interface{}) (Refresher, error)
 }
 
+// Refresher is an interface that defines methods to be implemented by a each refresher
 func Register(name string, factory RefresherFactory) {
 	if factory == nil {
 		panic("refresher factory cannot be nil")
@@ -34,6 +36,7 @@ func Register(name string, factory RefresherFactory) {
 	refresherFactories[name] = factory
 }
 
+// CreateRefresherFromConfig creates a new instance of the refresher using the provided configuration
 func CreateRefresherFromConfig(refresherConfig map[string]interface{}) (Refresher, error) {
 	refresherType, ok := refresherConfig["type"].(string)
 	if !ok || refresherType == "" {

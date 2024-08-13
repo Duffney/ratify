@@ -40,10 +40,12 @@ type KubeRefresherNamespaced struct {
 	Result  ctrl.Result
 }
 
+// Register registers the kubeRefresherNamespaced factory
 func init() {
 	Register("kubeRefresherNamespaced", &KubeRefresherNamespaced{})
 }
 
+// Refresh the certificates/keys for the key management provider by calling the GetCertificates and GetKeys methods
 func (kr *KubeRefresherNamespaced) Refresh(ctx context.Context) error {
 	logger := logrus.WithContext(ctx)
 
@@ -139,10 +141,12 @@ func (kr *KubeRefresherNamespaced) Refresh(ctx context.Context) error {
 	return nil
 }
 
+// GetResult returns the result of the refresh as ctrl.Result
 func (kr *KubeRefresherNamespaced) GetResult() interface{} {
 	return kr.Result
 }
 
+// Create creates a new instance of KubeRefresherNamespaced
 func (kr *KubeRefresherNamespaced) Create(config map[string]interface{}) (Refresher, error) {
 	client, ok := config["client"].(client.Client)
 	if !ok {

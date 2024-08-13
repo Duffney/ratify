@@ -41,11 +41,12 @@ type KubeRefresher struct {
 	Result  ctrl.Result
 }
 
+// Register registers the kubeRefresher factory
 func init() {
-	// register kubeRefresher factory
 	Register("kubeRefresher", &KubeRefresher{})
 }
 
+// Refresh the certificates/keys for the key management provider by calling the GetCertificates and GetKeys methods
 func (kr *KubeRefresher) Refresh(ctx context.Context) error {
 	logger := logrus.WithContext(ctx)
 
@@ -143,10 +144,12 @@ func (kr *KubeRefresher) Refresh(ctx context.Context) error {
 	return nil
 }
 
+// GetResult returns the result of the refresh as a ctrl.Result
 func (kr *KubeRefresher) GetResult() interface{} {
 	return kr.Result
 }
 
+// Create creates a new KubeRefresher instance
 func (kr *KubeRefresher) Create(config map[string]interface{}) (Refresher, error) {
 	client, ok := config["client"].(client.Client)
 	if !ok {
