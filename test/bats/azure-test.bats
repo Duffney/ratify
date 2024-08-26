@@ -320,15 +320,15 @@ SLEEP_TIME=1
 }
 
 @test "validate refresher reconcile count" {
-    sed -i -e "s/keymanagementprovider-akv/kmp-akv-refresh/" \
+    sed -e "s/keymanagementprovider-akv/kmp-akv-refresh/" \
         -e "s/1m/1s/" \
         -e "s/yourCertName/${NOTATION_PEM_NAME}/" \
         -e '/version: yourCertVersion/d' \
         -e "s|https://yourkeyvault.vault.azure.net/|${VAULT_URI}|" \
         -e "s/tenantID:/tenantID: ${TENANT_ID}/" \
         -e "s/clientID:/clientID: ${IDENTITY_CLIENT_ID}/" \
-        ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml
-    run kubectl apply -f ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml
+        ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml >./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
+    run kubectl apply -f ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
     assert_success
     sleep 10
     count=$(kubectl logs deployment/ratify -n gatekeeper-system | grep "Reconciled KeyManagementProvider" | wc -l)
@@ -352,8 +352,10 @@ SLEEP_TIME=1
         rm policy.json
     }
     version=$(az keyvault certificate show --vault-name $KEYVAULT_NAME --name $NOTATION_PEM_NAME --query 'sid' -o tsv | rev | cut -d'/' -f1 | rev)
-    sed -i -e "/name: ${NOTATION_PEM_NAME}/a \ \ \ \ \ \ \ \ version: ${version}" ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml
-    run kubectl apply -f ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml
+    sed -i \
+        -e "/name: ${NOTATION_PEM_NAME}/a \ \ \ \ \ \ \ \ version: ${version}" \
+        ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
+    run kubectl apply -f ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
     assert_success
     result=$(kubectl get keymanagementprovider kmp-akv-refresh -o jsonpath='{.status.properties.Certificates[0].Version}')
     az keyvault certificate get-default-policy -o json >>policy.json
