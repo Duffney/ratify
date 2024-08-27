@@ -327,8 +327,8 @@ SLEEP_TIME=1
         -e "s|https://yourkeyvault.vault.azure.net/|${VAULT_URI}|" \
         -e "s/tenantID:/tenantID: ${TENANT_ID}/" \
         -e "s/clientID:/clientID: ${IDENTITY_CLIENT_ID}/" \
-        ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml >./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
-    run kubectl apply -f ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
+        ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_akv_refresh_enabled.yaml >test.yaml
+    run kubectl apply -f test.yaml
     assert_success
     sleep 10
     count=$(kubectl logs deployment/ratify -n gatekeeper-system | grep "Reconciled KeyManagementProvider" | wc -l)
@@ -350,12 +350,13 @@ SLEEP_TIME=1
         echo "cleaning up"
         wait_for_process ${WAIT_TIME} ${SLEEP_TIME} 'kubectl delete keymanagementprovider kmp-akv-refresh --ignore-not-found=true'
         rm policy.json
+        rm test.yaml
     }
     version=$(az keyvault certificate show --vault-name $KEYVAULT_NAME --name $NOTATION_PEM_NAME --query 'sid' -o tsv | rev | cut -d'/' -f1 | rev)
     sed -i \
         -e "/name: ${NOTATION_PEM_NAME}/a \ \ \ \ \ \ \ \ version: ${version}" \
-        ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
-    run kubectl apply -f ./test/bats/tests/config/config_v1beta1_keymanagementprovider_akv_refresh.yaml
+        test.yaml
+    run kubectl apply -f test.yaml
     assert_success
     result=$(kubectl get keymanagementprovider kmp-akv-refresh -o jsonpath='{.status.properties.Certificates[0].Version}')
     az keyvault certificate get-default-policy -o json >>policy.json
