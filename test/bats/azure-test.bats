@@ -365,3 +365,9 @@ SLEEP_TIME=1
     refreshResult=$(kubectl get keymanagementprovider kmp-akv-refresh -o jsonpath='{.status.properties.Certificates[0].Version}')
     [ "$result" = "$refreshResult" ]
 }
+
+@test "check kmp status exists" {
+    run kubectl apply -f ./config/samples/clustered/kmp/config_v1beta1_keymanagementprovider_inline.yaml
+    exist=$(kubectl get keymanagementproviders keymanagementprovider-inline -o yaml | grep -q 'status:' && echo true || echo false)
+    [ "$exist" = true ]
+}
