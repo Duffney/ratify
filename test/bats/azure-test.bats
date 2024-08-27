@@ -335,7 +335,7 @@ SLEEP_TIME=1
     [ $count -ge 4 ]
 }
 
-@test "validate certificate version update" {
+@test "validate refresher updates kmp with latest certificate version" {
     result=$(kubectl get keymanagementprovider kmp-akv-refresh -o jsonpath='{.status.properties.Certificates[0].Version}')
     az keyvault certificate get-default-policy -o json >>policy.json
     wait_for_process 20 10 "az keyvault certificate create --vault-name $KEYVAULT_NAME --name $NOTATION_PEM_NAME --policy @policy.json"
