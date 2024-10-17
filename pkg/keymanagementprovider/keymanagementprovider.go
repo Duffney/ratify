@@ -41,6 +41,7 @@ type KeyManagementProviderStatus map[string]interface{}
 type KMPMapKey struct {
 	Name    string
 	Version string
+	Enabled string
 }
 
 type PublicKey struct {
