@@ -178,9 +178,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
 			certsMap[certMapKey] = certResult
 		}
-
 	}
-
 	return certsMap, getStatusMap(certsStatus, types.CertificatesStatus), nil
 }
 
