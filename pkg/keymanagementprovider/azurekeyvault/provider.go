@@ -146,7 +146,10 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
 
-		//TODO: can I replace else with a continue?
+		if keyVaultCert.Version == "" {
+			keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
+		}
+
 		if !*certBundle.Attributes.Enabled {
 			fmt.Printf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
 
@@ -159,25 +162,26 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			certsStatus = append(certsStatus, certProperty)
 			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
 			certsMap[certMapKey] = []*x509.Certificate{} // empty cert chain
-		} else {
-			// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/ratify-project/ratify/issues/695 for details
-			isEnabled := "true"
-			startTime := time.Now()
-			secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
-			}
-
-			certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
-			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
-			}
-
-			metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultCert.Name)
-			certsStatus = append(certsStatus, certProperty...)
-			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
-			certsMap[certMapKey] = certResult
+			continue
 		}
+
+		// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/ratify-project/ratify/issues/695 for details
+		isEnabled := "true"
+		startTime := time.Now()
+		secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+		}
+
+		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
+		}
+
+		metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultCert.Name)
+		certsStatus = append(certsStatus, certProperty...)
+		certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+		certsMap[certMapKey] = certResult
 	}
 	return certsMap, getStatusMap(certsStatus, types.CertificatesStatus), nil
 }
@@ -195,6 +199,10 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		keyBundle, err := s.kvClient.GetKey(ctx, s.vaultURI, keyVaultKey.Name, keyVaultKey.Version)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, keyVaultKey.Version, err)
+		}
+
+		if keyVaultKey.Version == "" {
+			keyVaultKey.Version = getObjectVersion(*keyBundle.Key.Kid)
 		}
 
 		if keyBundle.Attributes != nil && keyBundle.Attributes.Enabled != nil && !*keyBundle.Attributes.Enabled {
