@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -141,6 +142,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v,  keyvault %v", keyVaultCert.Name, s.vaultURI)
 
 		// fetch the object from Key Vault
+		startTime := time.Now()
 		certBundle, err := s.kvClient.GetCertificate(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
@@ -153,12 +155,11 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		if !*certBundle.Attributes.Enabled {
 			fmt.Printf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
 
-			isEnabled := "false"
+			isEnabled := false
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
 
-			metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultCert.Name)
-			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, isEnabled, lastRefreshed)
+			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
 			certsStatus = append(certsStatus, certProperty)
 			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
 			certsMap[certMapKey] = []*x509.Certificate{} // empty cert chain
@@ -166,14 +167,13 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		}
 
 		// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/ratify-project/ratify/issues/695 for details
-		isEnabled := "true"
-		startTime := time.Now()
+		isEnabled := true
 		secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
 
-		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
+		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, strconv.FormatBool(isEnabled))
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
 		}
@@ -206,25 +206,25 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		}
 
 		if keyBundle.Attributes != nil && keyBundle.Attributes.Enabled != nil && !*keyBundle.Attributes.Enabled {
-			isEnabled := "false"
+			isEnabled := false
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
 
-			keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version}] = nil
-			metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultKey.Name)
-			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, isEnabled, lastRefreshed)
+			keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = nil
+			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, strconv.FormatBool(isEnabled), lastRefreshed)
 			keysStatus = append(keysStatus, properties)
 
 			continue
 		}
 
+		isEnabled := true
 		publicKey, err := getKeyFromKeyBundle(keyBundle)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get key from key bundle:%w", err)
 		}
-		keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version}] = publicKey
+		keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = publicKey
 		metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultKey.Name)
-		properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, "true", time.Now().Format(time.RFC3339))
+		properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, strconv.FormatBool(isEnabled), time.Now().Format(time.RFC3339))
 		keysStatus = append(keysStatus, properties)
 	}
 
