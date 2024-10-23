@@ -73,9 +73,28 @@ type akvKMProvider struct {
 	certificates []types.KeyVaultValue
 	keys         []types.KeyVaultValue
 	cloudEnv     *azure.Environment
-	kvClient     *kv.BaseClient
+	kvClient     kvClient
 }
 type akvKMProviderFactory struct{}
+
+type kvClient interface {
+	GetCertificate(ctx context.Context, vaultBaseURL string, certificateName string, certificateVersion string) (kv.CertificateBundle, error)
+	GetKey(ctx context.Context, vaultBaseURL string, keyName string, keyVersion string) (kv.KeyBundle, error)
+	GetSecret(ctx context.Context, vaultBaseURL string, secretName string, secretVersion string) (kv.SecretBundle, error)
+}
+type kvClientImpl struct {
+	kv.BaseClient
+}
+
+func (c *kvClientImpl) GetCertificate(ctx context.Context, vaultBaseURL string, certificateName string, certificateVersion string) (kv.CertificateBundle, error) {
+	return c.BaseClient.GetCertificate(ctx, vaultBaseURL, certificateName, certificateVersion)
+}
+func (c *kvClientImpl) GetKey(ctx context.Context, vaultBaseURL string, keyName string, keyVersion string) (kv.KeyBundle, error) {
+	return c.BaseClient.GetKey(ctx, vaultBaseURL, keyName, keyVersion)
+}
+func (c *kvClientImpl) GetSecret(ctx context.Context, vaultBaseURL string, secretName string, secretVersion string) (kv.SecretBundle, error) {
+	return c.BaseClient.GetSecret(ctx, vaultBaseURL, secretName, secretVersion)
+}
 
 // initKVClient is a function to initialize the keyvault client
 // used for mocking purposes
@@ -128,7 +147,7 @@ func (f *akvKMProviderFactory) Create(_ string, keyManagementProviderConfig conf
 	if err != nil {
 		return nil, re.ErrorCodePluginInitFailure.NewError(re.KeyManagementProvider, ProviderName, re.AKVLink, err, "failed to create keyvault client", re.HideStackTrace)
 	}
-	provider.kvClient = kvClient
+	provider.kvClient = &kvClientImpl{*kvClient}
 
 	return provider, nil
 }
@@ -268,7 +287,7 @@ func initializeKvClient(ctx context.Context, keyVaultEndpoint, tenantID, clientI
 	kvClient := kv.New()
 	kvEndpoint := strings.TrimSuffix(keyVaultEndpoint, "/")
 
-	err := kvClient.AddToUserAgent(userAgent)
+	err := kvClient.Client.AddToUserAgent(userAgent)
 	if err != nil {
 		return nil, re.ErrorCodeConfigInvalid.WithDetail("Failed to add user agent to keyvault client.").WithRemediation(re.AKVLink).WithError(err)
 	}
