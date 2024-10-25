@@ -234,7 +234,8 @@ func TestGetCertificates(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string, _ string) (kv.CertificateBundle, error) {
 					return kv.CertificateBundle{
-						ID: to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						ID:  to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						Attributes: &kv.CertificateAttributes{
 							Enabled: to.BoolPtr(true),
 						},
@@ -251,7 +252,8 @@ func TestGetCertificates(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string, _ string) (kv.CertificateBundle, error) {
 					return kv.CertificateBundle{
-						ID: to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						ID:  to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						Attributes: &kv.CertificateAttributes{
 							Enabled: to.BoolPtr(false),
 						},
@@ -260,6 +262,7 @@ func TestGetCertificates(t *testing.T) {
 				GetSecretFunc: func(_ context.Context, _ string, _ string, _ string) (kv.SecretBundle, error) {
 					return kv.SecretBundle{
 						ID:          to.StringPtr("https://testkv.vault.azure.net/secrets/secret1"),
+						Kid:         to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						ContentType: to.StringPtr("application/x-pem-file"),
 						Attributes: &kv.SecretAttributes{
 							Enabled: to.BoolPtr(true),
@@ -274,7 +277,8 @@ func TestGetCertificates(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string, _ string) (kv.CertificateBundle, error) {
 					return kv.CertificateBundle{
-						ID: to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						ID:  to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						Attributes: &kv.CertificateAttributes{
 							Enabled: to.BoolPtr(true),
 						},
@@ -283,6 +287,7 @@ func TestGetCertificates(t *testing.T) {
 				GetSecretFunc: func(_ context.Context, _ string, _ string, _ string) (kv.SecretBundle, error) {
 					return kv.SecretBundle{
 						ID:          to.StringPtr("https://testkv.vault.azure.net/secrets/secret1"),
+						Kid:         to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						ContentType: to.StringPtr("application/x-pem-file"),
 						Attributes: &kv.SecretAttributes{
 							Enabled: to.BoolPtr(true),
@@ -297,7 +302,8 @@ func TestGetCertificates(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string, _ string) (kv.CertificateBundle, error) {
 					return kv.CertificateBundle{
-						ID: to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						ID:  to.StringPtr("https://testkv.vault.azure.net/certificates/cert1"),
+						Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 						Attributes: &kv.CertificateAttributes{
 							Enabled: to.BoolPtr(true),
 						},
@@ -352,6 +358,9 @@ func TestGetKeys(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string, _ string) (kv.KeyBundle, error) {
 					return kv.KeyBundle{
+						Key: &kv.JSONWebKey{
+							Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
+						},
 						Attributes: &kv.KeyAttributes{
 							Enabled: to.BoolPtr(false),
 						},
@@ -365,6 +374,9 @@ func TestGetKeys(t *testing.T) {
 			mockKvClient: &MockKvClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string, _ string) (kv.KeyBundle, error) {
 					return kv.KeyBundle{
+						Key: &kv.JSONWebKey{
+							Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
+						},
 						Attributes: &kv.KeyAttributes{
 							Enabled: to.BoolPtr(true),
 						},
@@ -379,6 +391,7 @@ func TestGetKeys(t *testing.T) {
 				GetKeyFunc: func(_ context.Context, _ string, _ string, _ string) (kv.KeyBundle, error) {
 					return kv.KeyBundle{
 						Key: &kv.JSONWebKey{
+							Kid: to.StringPtr("https://testkv.vault.azure.net/keys/key1"),
 							Kty: kv.RSA,
 							N:   to.StringPtr(base64.StdEncoding.EncodeToString([]byte("n"))),
 							E:   to.StringPtr(base64.StdEncoding.EncodeToString([]byte("e"))),
