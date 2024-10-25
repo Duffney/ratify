@@ -167,12 +167,12 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
 
-		if keyVaultCert.Version == "" {
-			keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
-		}
+		isEnabled := *certBundle.Attributes.Enabled
+		// if version is set as "" in the config, use the version from the cert bundle
+		keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
 
 		if !*certBundle.Attributes.Enabled {
-			fmt.Printf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
+			logger.GetLogger(ctx, logOpt).Debugf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
 
 			isEnabled := false
 			startTime := time.Now()
@@ -186,7 +186,6 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		}
 
 		// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/ratify-project/ratify/issues/695 for details
-		isEnabled := true
 		secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
@@ -220,12 +219,11 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 			return nil, nil, fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, keyVaultKey.Version, err)
 		}
 
-		if keyVaultKey.Version == "" {
-			keyVaultKey.Version = getObjectVersion(*keyBundle.Key.Kid)
-		}
+		isEnabled := *keyBundle.Attributes.Enabled
+		// if version is set as "" in the config, use the version from the key bundle
+		keyVaultKey.Version = getObjectVersion(*keyBundle.Key.Kid)
 
 		if keyBundle.Attributes != nil && keyBundle.Attributes.Enabled != nil && !*keyBundle.Attributes.Enabled {
-			isEnabled := false
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
 
@@ -236,7 +234,6 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 			continue
 		}
 
-		isEnabled := true
 		publicKey, err := getKeyFromKeyBundle(keyBundle)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get key from key bundle:%w", err)
