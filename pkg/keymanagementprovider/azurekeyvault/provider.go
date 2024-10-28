@@ -171,7 +171,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		// if version is set as "" in the config, use the version from the cert bundle
 		keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
 
-		if !*certBundle.Attributes.Enabled {
+		if !isEnabled {
 			logger.GetLogger(ctx, logOpt).Debugf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
 
 			isEnabled := false
@@ -223,7 +223,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		// if version is set as "" in the config, use the version from the key bundle
 		keyVaultKey.Version = getObjectVersion(*keyBundle.Key.Kid)
 
-		if keyBundle.Attributes != nil && keyBundle.Attributes.Enabled != nil && !*keyBundle.Attributes.Enabled {
+		if !isEnabled {
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
 
