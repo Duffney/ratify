@@ -157,6 +157,24 @@ func DeleteResourceFromMap(resource string) {
 	keyErrMap.Delete(resource)
 }
 
+// DeleteKeyFromMap deletes the keys from the map
+func DeleteCertificateFromMap(resource string, certKey KMPMapKey) {
+	if certs, ok := certificatesMap.Load(resource); ok {
+		if certMap, ok := certs.(map[KMPMapKey][]*x509.Certificate); ok {
+			delete(certMap, certKey)
+		}
+	}
+}
+
+// DeleteKeyFromMap deletes the keys from the map
+func DeleteKeyFromMap(resource string, key KMPMapKey) {
+	if keys, ok := keyMap.Load(resource); ok {
+		if keyMap, ok := keys.(map[KMPMapKey]PublicKey); ok {
+			delete(keyMap, key)
+		}
+	}
+}
+
 // FlattenKMPMap flattens the map of certificates fetched for a single key management provider resource and returns a single array
 func FlattenKMPMap(certMap map[KMPMapKey][]*x509.Certificate) []*x509.Certificate {
 	var items []*x509.Certificate

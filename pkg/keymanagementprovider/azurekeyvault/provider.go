@@ -60,6 +60,7 @@ type AKVKeyManagementProviderConfig struct {
 	TenantID     string                `json:"tenantID"`
 	ClientID     string                `json:"clientID"`
 	CloudName    string                `json:"cloudName,omitempty"`
+	Resource     string                `json:"resource,omitempty"`
 	Certificates []types.KeyVaultValue `json:"certificates,omitempty"`
 	Keys         []types.KeyVaultValue `json:"keys,omitempty"`
 }
@@ -70,6 +71,7 @@ type akvKMProvider struct {
 	tenantID     string
 	clientID     string
 	cloudName    string
+	resource     string
 	certificates []types.KeyVaultValue
 	keys         []types.KeyVaultValue
 	cloudEnv     *azure.Environment
@@ -136,6 +138,7 @@ func (f *akvKMProviderFactory) Create(_ string, keyManagementProviderConfig conf
 		certificates: conf.Certificates,
 		keys:         conf.Keys,
 		cloudEnv:     azureCloudEnv,
+		resource:     conf.Resource,
 	}
 	if err := provider.validate(); err != nil {
 		return nil, err
@@ -180,8 +183,8 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 
 			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
 			certsStatus = append(certsStatus, certProperty)
-			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
-			certsMap[certMapKey] = []*x509.Certificate{} // empty cert chain
+			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+			keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
 			continue
 		}
 
@@ -226,11 +229,10 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		if !isEnabled {
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
-
-			keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = nil
 			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, strconv.FormatBool(isEnabled), lastRefreshed)
 			keysStatus = append(keysStatus, properties)
-
+			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}
+			keymanagementprovider.DeleteKeyFromMap(s.resource, mapKey)
 			continue
 		}
 
