@@ -163,36 +163,32 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 	for _, keyVaultCert := range s.certificates {
 		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v,  keyvault %v", keyVaultCert.Name, s.vaultURI)
 
-		// fetch the object from Key Vault
 		startTime := time.Now()
-		certBundle, err := s.kvClient.GetCertificate(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
-		}
-
-		isEnabled := *certBundle.Attributes.Enabled
-		// if version is set as "" in the config, use the version from the cert bundle
-		keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
-
-		if !isEnabled {
-			logger.GetLogger(ctx, logOpt).Debugf("debug: certificate %s version %s is disabled.", keyVaultCert.Name, keyVaultCert.Version)
-
-			isEnabled := false
-			startTime := time.Now()
-			lastRefreshed := startTime.Format(time.RFC3339)
-
-			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
-			certsStatus = append(certsStatus, certProperty)
-			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
-			keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
-			continue
-		}
 
 		// GetSecret is required so we can fetch the entire cert chain. See issue https://github.com/ratify-project/ratify/issues/695 for details
 		secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
+			// certificate is disabled, remove it from the map
+			if strings.Contains(err.Error(), "403") {
+				certBundle, err := s.kvClient.GetCertificate(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
+				if err != nil {
+					return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+				}
+
+				keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
+				isEnabled := *certBundle.Attributes.Enabled
+				lastRefreshed := startTime.Format(time.RFC3339)
+				certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
+				certsStatus = append(certsStatus, certProperty)
+				mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+				keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
+				continue
+			}
+
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
+
+		isEnabled := *secretBundle.Attributes.Enabled
 
 		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, strconv.FormatBool(isEnabled))
 		if err != nil {
