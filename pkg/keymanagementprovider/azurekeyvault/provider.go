@@ -181,7 +181,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
 
-			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
+			certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, lastRefreshed, isEnabled)
 			certsStatus = append(certsStatus, certProperty)
 			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
 			keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
@@ -194,7 +194,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
 		}
 
-		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, strconv.FormatBool(isEnabled))
+		certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
 		}
@@ -229,7 +229,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		if !isEnabled {
 			startTime := time.Now()
 			lastRefreshed := startTime.Format(time.RFC3339)
-			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, strconv.FormatBool(isEnabled), lastRefreshed)
+			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, lastRefreshed, isEnabled)
 			keysStatus = append(keysStatus, properties)
 			mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}
 			keymanagementprovider.DeleteKeyFromMap(s.resource, mapKey)
@@ -242,7 +242,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		}
 		keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = publicKey
 		metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultKey.Name)
-		properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, strconv.FormatBool(isEnabled), time.Now().Format(time.RFC3339))
+		properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, time.Now().Format(time.RFC3339), isEnabled)
 		keysStatus = append(keysStatus, properties)
 	}
 
@@ -261,11 +261,11 @@ func getStatusMap(statusMap []map[string]string, contentType string) keymanageme
 }
 
 // return a status object that consist of the cert/key name, version, enabled and last refreshed time
-func getStatusProperty(name, version, enabled, lastRefreshed string) map[string]string {
+func getStatusProperty(name, version, lastRefreshed string, enabled bool) map[string]string {
 	properties := map[string]string{}
 	properties[types.StatusName] = name
 	properties[types.StatusVersion] = version
-	properties[types.StatusEnabled] = enabled
+	properties[types.StatusEnabled] = strconv.FormatBool(enabled)
 	properties[types.StatusLastRefreshed] = lastRefreshed
 	return properties
 }
@@ -300,7 +300,7 @@ func initializeKvClient(ctx context.Context, keyVaultEndpoint, tenantID, clientI
 
 // Parse the secret bundle and return an array of certificates
 // In a certificate chain scenario, all certificates from root to leaf will be returned
-func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle, certName, enabled string) ([]*x509.Certificate, []map[string]string, error) {
+func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle, certName string, enabled bool) ([]*x509.Certificate, []map[string]string, error) {
 	if secretBundle.ContentType == nil || secretBundle.Value == nil || secretBundle.ID == nil {
 		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "found invalid secret bundle for certificate  %s, contentType, value, and id must not be nil", re.HideStackTrace)
 	}
@@ -353,7 +353,7 @@ func getCertsFromSecretBundle(ctx context.Context, secretBundle kv.SecretBundle,
 			}
 			for _, cert := range decodedCerts {
 				results = append(results, cert)
-				certProperty := getStatusProperty(certName, version, enabled, lastRefreshed)
+				certProperty := getStatusProperty(certName, version, lastRefreshed, enabled)
 				certsStatus = append(certsStatus, certProperty)
 			}
 		default:

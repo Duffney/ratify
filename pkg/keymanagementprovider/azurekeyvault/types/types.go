@@ -26,7 +26,7 @@ const (
 	// Certificate version string for the certificate status property
 	StatusVersion = "Version"
 	// Enabled string for the certificate status property
-	StatusEnabled = "Enabled"
+	StatusEnabled = "true"
 	// Last refreshed string for the certificate status property
 	StatusLastRefreshed = "LastRefreshed"
 )
