@@ -41,6 +41,7 @@ import (
 	"golang.org/x/crypto/pkcs12"
 
 	kv "github.com/Azure/azure-sdk-for-go/services/keyvault/v7.1/keyvault"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 )
 
@@ -169,20 +170,26 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		secretBundle, err := s.kvClient.GetSecret(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
 		if err != nil {
 			// certificate is disabled, remove it from the map
-			if strings.Contains(err.Error(), "403") {
-				certBundle, err := s.kvClient.GetCertificate(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
-				if err != nil {
-					return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
-				}
+			if de, ok := err.(autorest.DetailedError); ok {
 
-				keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
-				isEnabled := *certBundle.Attributes.Enabled
-				lastRefreshed := startTime.Format(time.RFC3339)
-				certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
-				certsStatus = append(certsStatus, certProperty)
-				mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
-				keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
-				continue
+				if re, ok := de.Original.(*azure.RequestError); ok {
+
+					if re.ServiceError.Code == "SecretDisabled" {
+						certBundle, err := s.kvClient.GetCertificate(ctx, s.vaultURI, keyVaultCert.Name, keyVaultCert.Version)
+						if err != nil {
+							return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+						}
+
+						keyVaultCert.Version = getObjectVersion(*certBundle.Kid)
+						isEnabled := *certBundle.Attributes.Enabled
+						lastRefreshed := startTime.Format(time.RFC3339)
+						certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, strconv.FormatBool(isEnabled), lastRefreshed)
+						certsStatus = append(certsStatus, certProperty)
+						mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+						keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
+						continue
+					}
+				}
 			}
 
 			return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)

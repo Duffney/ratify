@@ -27,6 +27,7 @@ import (
 	"time"
 
 	kv "github.com/Azure/azure-sdk-for-go/services/keyvault/v7.1/keyvault"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/ratify-project/ratify/internal/version"
@@ -242,7 +243,12 @@ func TestGetCertificates(t *testing.T) {
 					}, nil
 				},
 				GetSecretFunc: func(_ context.Context, _ string, _ string, _ string) (kv.SecretBundle, error) {
-					return kv.SecretBundle{}, errors.New("403")
+					err := autorest.DetailedError{
+						Original: &azure.RequestError{
+							ServiceError: &azure.ServiceError{Code: "SecretDisabled"},
+						},
+					}
+					return kv.SecretBundle{}, err
 				},
 			},
 		},
