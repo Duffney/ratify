@@ -85,6 +85,11 @@ type akvKMProvider struct {
 	certificateKVClient certificateKVClient
 }
 
+type VersionInfo struct {
+	Version string
+	Created time.Time
+}
+
 type akvKMProviderFactory struct{}
 
 // kvClient is an interface to interact with the keyvault client used for mocking purposes
@@ -207,10 +212,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			keyVaultCert.VersionHistoryLimit = versionHistoryLimitDefault
 		}
 
-		var versionHistory []struct {
-			Version string
-			Created time.Time
-		}
+		versionHistory := []VersionInfo{}
 
 		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, nil)
 		for certVersionPager.More() {
@@ -219,10 +221,11 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 				return nil, nil, fmt.Errorf("failed to get certificate versions for objectName:%s, error: %w", keyVaultCert.Name, err)
 			}
 			for _, cert := range pager.Value {
-				versionHistory = append(versionHistory, struct {
-					Version string
-					Created time.Time
-				}{Version: cert.ID.Version(), Created: *cert.Attributes.Created})
+				versionInfo := VersionInfo{
+					Version: cert.ID.Version(),
+					Created: *cert.Attributes.Created,
+				}
+				versionHistory = append(versionHistory, versionInfo)
 			}
 		}
 
@@ -283,10 +286,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 			keyVaultKey.VersionHistoryLimit = versionHistoryLimitDefault
 		}
 
-		var versionHistory []struct {
-			Version string
-			Created time.Time
-		}
+		versionHistory := []VersionInfo{}
 
 		keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyVaultKey.Name, nil)
 		for keyVersionPager.More() {
@@ -295,10 +295,11 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 				return nil, nil, fmt.Errorf("failed to get key versions for objectName: %s, error: %w", keyVaultKey.Name, err)
 			}
 			for _, key := range pager.Value {
-				versionHistory = append(versionHistory, struct {
-					Version string
-					Created time.Time
-				}{Version: key.KID.Version(), Created: *key.Attributes.Created})
+				versionInfo := VersionInfo{
+					Version: key.KID.Version(),
+					Created: *key.Attributes.Created,
+				}
+				versionHistory = append(versionHistory, versionInfo)
 			}
 		}
 
@@ -557,20 +558,14 @@ func isSecretDisabledError(err error) bool {
 }
 
 // sortVersionHistory sorts the version history by created time
-func sortVersionHistory(versionHistory []struct {
-	Version string
-	Created time.Time
-}) {
+func sortVersionHistory(versionHistory []VersionInfo) {
 	sort.Slice(versionHistory, func(i, j int) bool {
 		return versionHistory[i].Created.Before(versionHistory[j].Created)
 	})
 }
 
 // GetSortedVersions returns the sorted versions of the object
-func GetSortedVersions(versionHistory []struct {
-	Version string
-	Created time.Time
-}) []string {
+func GetSortedVersions(versionHistory []VersionInfo) []string {
 	sortedVersions := make([]string, 0, len(versionHistory))
 	for _, version := range versionHistory {
 		sortedVersions = append(sortedVersions, version.Version)
