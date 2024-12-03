@@ -248,7 +248,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 					keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
 					continue
 				}
-				return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, version, err)
+				return nil, nil, fmt.Errorf("failed to get secret objectName: %s, objectVersion: %s, error: %w", keyVaultCert.Name, version, err)
 			}
 
 			secretBundle := secretReponse.SecretBundle
