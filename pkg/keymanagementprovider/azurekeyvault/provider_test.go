@@ -305,7 +305,8 @@ func TestGetCertificates(t *testing.T) {
 		expectedErr             bool
 	}{
 		{
-			name: "Certificate enabled with multiple versions",
+			name:                "Certificate enabled with multiple versions",
+			versionHistoryLimit: 3,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
 					return azcertificates.GetCertificateResponse{
@@ -382,8 +383,23 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: false,
 		},
 		{
+			name: "No versions returned by pager",
+			mockCertificateKVClient: &MockCertificateKVClient{
+				NewListCertificateVersionsPagerFunc: func(_ string, _ *azcertificates.ListCertificateVersionsOptions) *runtime.Pager[azcertificates.ListCertificateVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azcertificates.ListCertificateVersionsResponse]{
+						More: func(_ azcertificates.ListCertificateVersionsResponse) bool {
+							return false
+						},
+						Fetcher: func(_ context.Context, _ *azcertificates.ListCertificateVersionsResponse) (azcertificates.ListCertificateVersionsResponse, error) {
+							return azcertificates.ListCertificateVersionsResponse{}, nil
+						},
+					})
+				},
+			},
+			expectedErr: false,
+		},
+		{
 			name:                    "GetSecret error",
-			versionHistoryLimit:     1,
 			mockCertificateKVClient: &MockCertificateKVClient{},
 			mockSecretKVClient: &MockSecretKVClient{
 				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
@@ -492,7 +508,7 @@ func TestGetKeys(t *testing.T) {
 	}{
 		{
 			name:                "Key enabled with multiple versions",
-			versionHistoryLimit: 2,
+			versionHistoryLimit: 3,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{
@@ -550,6 +566,22 @@ func TestGetKeys(t *testing.T) {
 
 							pageCounter++
 							return resp, nil
+						},
+					})
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "No versions returned by pager",
+			mockKeyKVClient: &MockKeyKVClient{
+				NewListKeyVersionsPagerFunc: func(_ string, _ *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azkeys.ListKeyVersionsResponse]{
+						More: func(_ azkeys.ListKeyVersionsResponse) bool {
+							return false
+						},
+						Fetcher: func(_ context.Context, _ *azkeys.ListKeyVersionsResponse) (azkeys.ListKeyVersionsResponse, error) {
+							return azkeys.ListKeyVersionsResponse{}, nil
 						},
 					})
 				},

@@ -207,11 +207,6 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v, certVersion %v, vaultURI: %v", keyVaultCert.Name, keyVaultCert.Version, s.vaultURI)
 
 		startTime := time.Now()
-		// if versionHistoryLimit is not set, set it to default value 1
-		if keyVaultCert.VersionHistoryLimit == 0 {
-			keyVaultCert.VersionHistoryLimit = versionHistoryLimitDefault
-		}
-
 		versionHistory := []VersionInfo{}
 
 		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, nil)
@@ -233,7 +228,17 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		sortVersionHistory(versionHistory)
 		sortedVersionHistory := GetSortedVersions(versionHistory)
 
-		// if versionHistoryLimit is greater than the number of versions, set it to the number of versions
+		if len(sortedVersionHistory) == 0 {
+			logger.GetLogger(ctx, logOpt).Infof("no versions found for certificate %s", keyVaultCert.Name)
+			continue
+		}
+
+		// if versionHistoryLimit isn't set default to 1 to avoid out of bounds error
+		if keyVaultCert.VersionHistoryLimit == 0 {
+			keyVaultCert.VersionHistoryLimit = versionHistoryLimitDefault
+		}
+
+		// Ensure that the versionHistoryLimit is not greater than the number of versions to avoid out of bounds error
 		if keyVaultCert.VersionHistoryLimit > len(sortedVersionHistory) {
 			keyVaultCert.VersionHistoryLimit = len(sortedVersionHistory)
 		}
@@ -251,7 +256,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 					keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
 					continue
 				}
-				return nil, nil, fmt.Errorf("failed to get secret objectName: %s, objectVersion: %s, error: %w", keyVaultCert.Name, version, err)
+				return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, version, err)
 			}
 
 			secretBundle := secretReponse.SecretBundle
@@ -281,18 +286,13 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 
 		// fetch the key object from Key Vault
 		startTime := time.Now()
-		// if versionHistoryLimit is not set, set it to default value 1
-		if keyVaultKey.VersionHistoryLimit == 0 {
-			keyVaultKey.VersionHistoryLimit = versionHistoryLimitDefault
-		}
-
 		versionHistory := []VersionInfo{}
 
 		keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyVaultKey.Name, nil)
 		for keyVersionPager.More() {
 			pager, err := keyVersionPager.NextPage(ctx)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get key versions for objectName: %s, error: %w", keyVaultKey.Name, err)
+				return nil, nil, fmt.Errorf("failed to get key versions for objectName:%s, error: %w", keyVaultKey.Name, err)
 			}
 			for _, key := range pager.Value {
 				versionInfo := VersionInfo{
@@ -307,12 +307,23 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		sortVersionHistory(versionHistory)
 		sortedVersionHistory := GetSortedVersions(versionHistory)
 
+		// if no versions found, log and continue
+		if len(sortedVersionHistory) == 0 {
+			logger.GetLogger(ctx, logOpt).Infof("no versions found for key %s", keyVaultKey.Name)
+			continue
+		}
+
+		// if versionHistoryLimit isn't set default to 1 to avoid out of bounds error
+		if keyVaultKey.VersionHistoryLimit == 0 {
+			keyVaultKey.VersionHistoryLimit = versionHistoryLimitDefault
+		}
+
 		// if versionHistoryLimit is greater than the number of versions, set it to the number of versions
 		if keyVaultKey.VersionHistoryLimit > len(sortedVersionHistory) {
 			keyVaultKey.VersionHistoryLimit = len(sortedVersionHistory)
 		}
 
-		// get the latest version of the key up to the limit
+		// get the latest version of the certificate up to the limit
 		for _, version := range sortedVersionHistory[len(sortedVersionHistory)-keyVaultKey.VersionHistoryLimit:] {
 			keyResponse, err := s.keyKVClient.GetKey(ctx, keyVaultKey.Name, version)
 			if err != nil {
