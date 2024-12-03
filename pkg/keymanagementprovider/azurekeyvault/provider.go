@@ -311,7 +311,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 			keyVaultKey.VersionHistoryLimit = len(sortedVersionHistory)
 		}
 
-		// get the latest version of the certificate up to the limit
+		// get the latest version of the key up to the limit
 		for _, version := range sortedVersionHistory[len(sortedVersionHistory)-keyVaultKey.VersionHistoryLimit:] {
 			keyResponse, err := s.keyKVClient.GetKey(ctx, keyVaultKey.Name, version)
 			if err != nil {
