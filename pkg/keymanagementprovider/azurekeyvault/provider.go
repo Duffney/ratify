@@ -135,8 +135,8 @@ func (c *keyKVClientImpl) GetKey(ctx context.Context, keyName string, keyVersion
 	return c.Client.GetKey(ctx, keyName, keyVersion, nil)
 }
 
-func (c *keyKVClientImpl) NewListKeyVersionsPager(name string, options *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
-	return c.Client.NewListKeyVersionsPager(name, options)
+func (c *keyKVClientImpl) NewListKeyVersionsPager(keyName string, options *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
+	return c.Client.NewListKeyVersionsPager(keyName, options)
 }
 
 // GetSecret retrieves a secret from the keyvault
@@ -216,6 +216,10 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 				return nil, nil, fmt.Errorf("failed to get certificate versions for objectName:%s, error: %w", keyVaultCert.Name, err)
 			}
 			for _, cert := range pager.Value {
+				if cert.ID == nil || cert.Attributes == nil || cert.Attributes.Created == nil {
+					logger.GetLogger(ctx, logOpt).Warnf("certificate %s, version %s, found invalid certificate object, id, attributes or created time must not be nil", keyVaultCert.Name, cert.ID.Version())
+					continue
+				}
 				versionInfo := VersionInfo{
 					Version: cert.ID.Version(),
 					Created: *cert.Attributes.Created,
@@ -224,9 +228,10 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			}
 		}
 
-		// sort the version history by created time
+		// Pager results are not sorted by created time, so we sort them here
+		// in ascending order (oldest to newest)
 		sortVersionHistory(versionHistory)
-		sortedVersionHistory := GetSortedVersions(versionHistory)
+		sortedVersionHistory := GetVersions(versionHistory)
 
 		if len(sortedVersionHistory) == 0 {
 			logger.GetLogger(ctx, logOpt).Infof("no versions found for certificate %s", keyVaultCert.Name)
@@ -260,6 +265,10 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 			}
 
 			secretBundle := secretReponse.SecretBundle
+			if secretBundle.Attributes == nil || secretBundle.Attributes.Enabled == nil {
+				logger.GetLogger(ctx, logOpt).Warnf("certificate %s, version %s, found invalid secret bundle, attributes or attribute.enabled not be nil", keyVaultCert.Name, version)
+				continue
+			}
 			isEnabled := *secretBundle.Attributes.Enabled
 
 			certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
@@ -295,6 +304,10 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 				return nil, nil, fmt.Errorf("failed to get key versions for objectName:%s, error: %w", keyVaultKey.Name, err)
 			}
 			for _, key := range pager.Value {
+				if key.KID == nil || key.Attributes == nil || key.Attributes.Created == nil {
+					logger.GetLogger(ctx, logOpt).Warnf("key %s, version %s, found invalid key object, id, attributes or created time must not be nil", keyVaultKey.Name, key.KID.Version())
+					continue
+				}
 				versionInfo := VersionInfo{
 					Version: key.KID.Version(),
 					Created: *key.Attributes.Created,
@@ -303,9 +316,10 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 			}
 		}
 
-		// sort the version history by created time
+		// Pager results are not sorted by created time, so we sort them here
+		// in ascending order (oldest to newest)
 		sortVersionHistory(versionHistory)
-		sortedVersionHistory := GetSortedVersions(versionHistory)
+		sortedVersionHistory := GetVersions(versionHistory)
 
 		// if no versions found, log and continue
 		if len(sortedVersionHistory) == 0 {
@@ -330,6 +344,10 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 				return nil, nil, fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, version, err)
 			}
 			keyBundle := keyResponse.KeyBundle
+			if keyBundle.Attributes == nil || keyBundle.Attributes.Enabled == nil {
+				logger.GetLogger(ctx, logOpt).Warnf("key %s, version %s, found invalid key bundle, attributes or attribute.enabled not be nil", keyVaultKey.Name, version)
+				continue
+			}
 			isEnabled := *keyBundle.Attributes.Enabled
 
 			if !isEnabled {
@@ -569,14 +587,14 @@ func isSecretDisabledError(err error) bool {
 }
 
 // sortVersionHistory sorts the version history by created time
-func sortVersionHistory(versionHistory []VersionInfo) {
-	sort.Slice(versionHistory, func(i, j int) bool {
-		return versionHistory[i].Created.Before(versionHistory[j].Created)
+func sortVersionHistory(sortedVersionHistory []VersionInfo) {
+	sort.Slice(sortedVersionHistory, func(i, j int) bool {
+		return sortedVersionHistory[i].Created.Before(sortedVersionHistory[j].Created)
 	})
 }
 
-// GetSortedVersions returns the sorted versions of the object
-func GetSortedVersions(versionHistory []VersionInfo) []string {
+// GetVersions returns the sorted versions of the object
+func GetVersions(versionHistory []VersionInfo) []string {
 	sortedVersions := make([]string, 0, len(versionHistory))
 	for _, version := range versionHistory {
 		sortedVersions = append(sortedVersions, version.Version)
