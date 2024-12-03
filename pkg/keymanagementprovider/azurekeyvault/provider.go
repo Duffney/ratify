@@ -292,7 +292,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		for keyVersionPager.More() {
 			pager, err := keyVersionPager.NextPage(ctx)
 			if err != nil {
-				return nil, nil, fmt.Errorf("failed to get key versions for objectName:%s, error: %w", keyVaultKey.Name, err)
+				return nil, nil, fmt.Errorf("failed to get key versions for objectName: %s, error: %w", keyVaultKey.Name, err)
 			}
 			for _, key := range pager.Value {
 				versionHistory = append(versionHistory, struct {
