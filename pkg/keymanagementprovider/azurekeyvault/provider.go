@@ -85,6 +85,7 @@ type akvKMProvider struct {
 	certificateKVClient certificateKVClient
 }
 
+// VersionInfo holds the version and created time of an azure key vault object
 type VersionInfo struct {
 	Version string
 	Created time.Time
@@ -135,6 +136,7 @@ func (c *keyKVClientImpl) GetKey(ctx context.Context, keyName string, keyVersion
 	return c.Client.GetKey(ctx, keyName, keyVersion, nil)
 }
 
+// NewListKeyVersionsPager retrieves a pager for listing key versions
 func (c *keyKVClientImpl) NewListKeyVersionsPager(keyName string, options *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
 	return c.Client.NewListKeyVersionsPager(keyName, options)
 }
@@ -209,7 +211,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		startTime := time.Now()
 		var versionHistory []VersionInfo
 
-		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, nil)
+		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, &azcertificates.ListCertificateVersionsOptions{})
 		for certVersionPager.More() {
 			pager, err := certVersionPager.NextPage(ctx)
 			if err != nil {
@@ -297,7 +299,7 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		startTime := time.Now()
 		versionHistory := []VersionInfo{}
 
-		keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyVaultKey.Name, nil)
+		keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyVaultKey.Name, &azkeys.ListKeyVersionsOptions{})
 		for keyVersionPager.More() {
 			pager, err := keyVersionPager.NextPage(ctx)
 			if err != nil {
