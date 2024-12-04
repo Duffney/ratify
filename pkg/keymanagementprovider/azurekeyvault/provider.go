@@ -207,7 +207,7 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v, certVersion %v, vaultURI: %v", keyVaultCert.Name, keyVaultCert.Version, s.vaultURI)
 
 		startTime := time.Now()
-		versionHistory := []VersionInfo{}
+		var versionHistory []VersionInfo
 
 		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, nil)
 		for certVersionPager.More() {
