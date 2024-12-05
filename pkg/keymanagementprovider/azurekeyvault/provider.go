@@ -209,6 +209,49 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v, certVersion %v, vaultURI: %v", keyVaultCert.Name, keyVaultCert.Version, s.vaultURI)
 
 		startTime := time.Now()
+
+		// if versionHistoryLimit isn't used, fetch a single version without pager to avoid breaking changes caused by needing list permissions on the keyvault
+		if keyVaultCert.VersionHistoryLimit == 0 {
+			secretResponse, err := s.secretKVClient.GetSecret(ctx, keyVaultCert.Name, keyVaultCert.Version)
+			if err != nil {
+				if isSecretDisabledError(err) {
+					// if secret is disabled, get the version of the certificate for status
+					certResponse, err := s.certificateKVClient.GetCertificate(ctx, keyVaultCert.Name, keyVaultCert.Version)
+					if err != nil {
+						return nil, nil, fmt.Errorf("failed to get certificate objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+					}
+					certBundle := certResponse.CertificateBundle
+					keyVaultCert.Version = getObjectVersion(*certBundle.KID)
+					isEnabled := *certBundle.Attributes.Enabled
+					lastRefreshed := startTime.Format(time.RFC3339)
+					certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, lastRefreshed, isEnabled)
+					certsStatus = append(certsStatus, certProperty)
+					mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+					keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
+					continue
+				}
+				return nil, nil, fmt.Errorf("failed to get secret objectName:%s, objectVersion:%s, error: %w", keyVaultCert.Name, keyVaultCert.Version, err)
+			}
+
+			secretBundle := secretResponse.SecretBundle
+			if secretBundle.Attributes == nil || secretBundle.Attributes.Enabled == nil {
+				logger.GetLogger(ctx, logOpt).Warnf("certificate %s, version %s, found invalid secret bundle, attributes or attribute.enabled not be nil", keyVaultCert.Name, keyVaultCert.Version)
+				continue
+			}
+			isEnabled := *secretBundle.Attributes.Enabled
+
+			certResult, certProperty, err := getCertsFromSecretBundle(ctx, secretBundle, keyVaultCert.Name, isEnabled)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get certificates from secret bundle:%w", err)
+			}
+
+			metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultCert.Name)
+			certsStatus = append(certsStatus, certProperty...)
+			certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
+			certsMap[certMapKey] = certResult
+			continue
+		}
+
 		var versionHistory []VersionInfo
 
 		certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(keyVaultCert.Name, &azcertificates.ListCertificateVersionsOptions{})
@@ -238,11 +281,6 @@ func (s *akvKMProvider) GetCertificates(ctx context.Context) (map[keymanagementp
 		if len(sortedVersionHistory) == 0 {
 			logger.GetLogger(ctx, logOpt).Infof("no versions found for certificate %s", keyVaultCert.Name)
 			continue
-		}
-
-		// if versionHistoryLimit isn't set default to 1 to avoid out of bounds error
-		if keyVaultCert.VersionHistoryLimit == 0 {
-			keyVaultCert.VersionHistoryLimit = versionHistoryLimitDefault
 		}
 
 		// Ensure that the versionHistoryLimit is not greater than the number of versions to avoid out of bounds error
@@ -297,6 +335,43 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 
 		// fetch the key object from Key Vault
 		startTime := time.Now()
+		// if versionHistoryLimit isn't used, fetch a single version without pager to avoid breaking changes caused by needing list permissions on the keyvault
+		if keyVaultKey.VersionHistoryLimit == 0 {
+			keyResponse, err := s.keyKVClient.GetKey(ctx, keyVaultKey.Name, keyVaultKey.Version)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, keyVaultKey.Version, err)
+			}
+
+			keyBundle := keyResponse.KeyBundle
+			if keyBundle.Attributes == nil || keyBundle.Attributes.Enabled == nil {
+				logger.GetLogger(ctx, logOpt).Warnf("key %s, version %s, found invalid key bundle, attributes or attribute.enabled not be nil", keyVaultKey.Name, keyVaultKey.Version)
+				continue
+			}
+			isEnabled := *keyBundle.Attributes.Enabled
+
+			keyVaultKey.Version = getObjectVersion(string(*keyBundle.Key.KID))
+
+			if !isEnabled {
+				startTime := time.Now()
+				lastRefreshed := startTime.Format(time.RFC3339)
+				properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, lastRefreshed, isEnabled)
+				keysStatus = append(keysStatus, properties)
+				mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}
+				keymanagementprovider.DeleteKeyFromMap(s.resource, mapKey)
+				continue
+			}
+
+			publicKey, err := getKeyFromKeyBundle(keyBundle)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to get key from key bundle:%w", err)
+			}
+			keysMap[keymanagementprovider.KMPMapKey{Name: keyVaultKey.Name, Version: keyVaultKey.Version, Enabled: isEnabled}] = publicKey
+			metrics.ReportAKVCertificateDuration(ctx, time.Since(startTime).Milliseconds(), keyVaultKey.Name)
+			properties := getStatusProperty(keyVaultKey.Name, keyVaultKey.Version, time.Now().Format(time.RFC3339), isEnabled)
+			keysStatus = append(keysStatus, properties)
+			continue
+		}
+
 		versionHistory := []VersionInfo{}
 
 		keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyVaultKey.Name, &azkeys.ListKeyVersionsOptions{})
@@ -327,11 +402,6 @@ func (s *akvKMProvider) GetKeys(ctx context.Context) (map[keymanagementprovider.
 		if len(sortedVersionHistory) == 0 {
 			logger.GetLogger(ctx, logOpt).Infof("no versions found for key %s", keyVaultKey.Name)
 			continue
-		}
-
-		// if versionHistoryLimit isn't set default to 1 to avoid out of bounds error
-		if keyVaultKey.VersionHistoryLimit == 0 {
-			keyVaultKey.VersionHistoryLimit = versionHistoryLimitDefault
 		}
 
 		// if versionHistoryLimit is greater than the number of versions, set it to the number of versions

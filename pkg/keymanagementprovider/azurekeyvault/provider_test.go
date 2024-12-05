@@ -305,19 +305,128 @@ func TestGetCertificates(t *testing.T) {
 		expectedErr             bool
 	}{
 		{
-			name:                    "versionHistoryLimit is 0",
+			name:                    "FetchSingleVersion: certificate secret enabled",
 			versionHistoryLimit:     0,
 			mockCertificateKVClient: &MockCertificateKVClient{},
 			mockSecretKVClient: &MockSecretKVClient{
 				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
 					return azsecrets.GetSecretResponse{
 						SecretBundle: azsecrets.SecretBundle{
+							ContentType: stringPtr("application/x-pem-file"),
 							ID:          &secretID,
 							Kid:         stringPtr("https://testkv.vault.azure.net/keys/key1"),
-							ContentType: stringPtr("application/x-pem-file"),
 							Attributes: &azsecrets.SecretAttributes{
 								Enabled: boolPtr(true),
 							},
+							Value: stringPtr("-----BEGIN CERTIFICATE-----\nMIIC8TCCAdmgAwIBAgIUaNrwbhs/I1ecqUYdzD2xuAVNdmowDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzdaFw0yNDA2MjAwMTIyMzdaMBkxFzAVBgNVBAMMDnJhdGlm\neS5kZWZhdWx0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtskG1BUt\n4Fw2lbm53KbwZb1hnLmWdwRotZyznhhk/yrUDcq3uF6klwpk/E2IKfUKIo6doHSk\nXaEZXR68UtXygvA4wdg7xZ6kKpXy0gu+RxGE6CGtDHTyDDzITu+NBjo21ZSsyGpQ\nJeIKftUCHdwdygKf0CdJx8A29GBRpHGCmJadmt7tTzOnYjmbuPVLeqJo/Ex9qXcG\nZbxoxnxr5NCocFeKx+EbLo+k/KjdFB2PKnhgzxAaMMMP6eXPr8l5AlzkC83EmPvN\ntveuaBbamdlFkD+53TZeZlxt3GIdq93Iw/UpbQ/pvhbrztMT+UVEkm15sShfX8Xn\nL2st5A4n0V+66QIDAQABoyAwHjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIH\ngDANBgkqhkiG9w0BAQsFAAOCAQEAGpOqozyfDSBjoTepsRroxxcZ4sq65gw45Bme\nm36BS6FG0WHIg3cMy6KIIBefTDSKrPkKNTtuF25AeGn9jM+26cnfDM78ZH0+Lnn7\n7hs0MA64WMPQaWs9/+89aM9NADV9vp2zdG4xMi6B7DruvKWyhJaNoRqK/qP6LdSQ\nw8M+21sAHvXgrRkQtJlVOzVhgwt36NOb1hzRlQiZB+nhv2Wbw7fbtAaADk3JAumf\nvM+YdPS1KfAFaYefm4yFd+9/C0KOkHico3LTbELO5hG0Mo/EYvtjM+Fljb42EweF\n3nAx1GSPe5Tn8p3h6RyJW5HIKozEKyfDuLS0ccB/nqT3oNjcTw==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nMIIDRTCCAi2gAwIBAgIUcC33VfaMhOnsl7avNTRVQozoVtUwDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzZaFw0yMzA2MjIwMTIyMzZaMCoxDzANBgNVBAoMBlJhdGlm\neTEXMBUGA1UEAwwOUmF0aWZ5IFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IB\nDwAwggEKAoIBAQDDFhDnyPrVDZaeRu6Tbg1a/iTwus+IuX+h8aKhKS1yHz4EF/Lz\nxCy7lNSQ9srGMMVumWuNom/ydIphff6PejZM1jFKPU6OQR/0JX5epcVIjbKa562T\nDguUxJ+h5V3EIyM4RqOWQ2g/xZo86x5TzyNJXiVdHHRvmDvUNwPpMeDjr/EHVAni\n5YQObxkJRiiZ7XOa5zz3YztVm8sSZAwPWroY1HIfvtP+KHpiNDIKSymmuJkH4SEr\nJn++iqN8na18a9DFBPTTrLPe3CxATGrMfosCMZ6LP3iFLLc/FaSpwcnugWdewsUK\nYs+sUY7jFWR7x7/1nyFWyRrQviM4f4TY+K7NAgMBAAGjYzBhMB0GA1UdDgQWBBQH\nYePW7QPP2p1utr3r6gqzEkKs+DAfBgNVHSMEGDAWgBQHYePW7QPP2p1utr3r6gqz\nEkKs+DAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwICBDANBgkqhkiG9w0B\nAQsFAAOCAQEAjKp4vx3bFaKVhAbQeTsDjWJgmXLK2vLgt74MiUwSF6t0wehlfszE\nIcJagGJsvs5wKFf91bnwiqwPjmpse/thPNBAxh1uEoh81tOklv0BN790vsVpq3t+\ncnUvWPiCZdRlAiGGFtRmKk3Keq4sM6UdiUki9s+wnxypHVb4wIpVxu5R271Lnp5I\n+rb2EQ48iblt4XZPczf/5QJdTgbItjBNbuO8WVPOqUIhCiFuAQziLtNUq3p81dHO\nQ2BPgmaitCpIUYHVYighLauBGCH8xOFzj4a4KbOxKdxyJTd0La/vRCKaUtJX67Lc\nfQYVR9HXQZ0YlmwPcmIG5v7wBfcW34NUvA==\n-----END CERTIFICATE-----\n"),
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:                    "FetchSingleVersion: certificate secret enabled nil attributes",
+			versionHistoryLimit:     0,
+			mockCertificateKVClient: &MockCertificateKVClient{},
+			mockSecretKVClient: &MockSecretKVClient{
+				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
+					return azsecrets.GetSecretResponse{
+						SecretBundle: azsecrets.SecretBundle{
+							ContentType: stringPtr("application/x-pem-file"),
+							ID:          &secretID,
+							Kid:         stringPtr("https://testkv.vault.azure.net/keys/key1"),
+							Value:       stringPtr("-----BEGIN CERTIFICATE-----\nMIIC8TCCAdmgAwIBAgIUaNrwbhs/I1ecqUYdzD2xuAVNdmowDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzdaFw0yNDA2MjAwMTIyMzdaMBkxFzAVBgNVBAMMDnJhdGlm\neS5kZWZhdWx0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtskG1BUt\n4Fw2lbm53KbwZb1hnLmWdwRotZyznhhk/yrUDcq3uF6klwpk/E2IKfUKIo6doHSk\nXaEZXR68UtXygvA4wdg7xZ6kKpXy0gu+RxGE6CGtDHTyDDzITu+NBjo21ZSsyGpQ\nJeIKftUCHdwdygKf0CdJx8A29GBRpHGCmJadmt7tTzOnYjmbuPVLeqJo/Ex9qXcG\nZbxoxnxr5NCocFeKx+EbLo+k/KjdFB2PKnhgzxAaMMMP6eXPr8l5AlzkC83EmPvN\ntveuaBbamdlFkD+53TZeZlxt3GIdq93Iw/UpbQ/pvhbrztMT+UVEkm15sShfX8Xn\nL2st5A4n0V+66QIDAQABoyAwHjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIH\ngDANBgkqhkiG9w0BAQsFAAOCAQEAGpOqozyfDSBjoTepsRroxxcZ4sq65gw45Bme\nm36BS6FG0WHIg3cMy6KIIBefTDSKrPkKNTtuF25AeGn9jM+26cnfDM78ZH0+Lnn7\n7hs0MA64WMPQaWs9/+89aM9NADV9vp2zdG4xMi6B7DruvKWyhJaNoRqK/qP6LdSQ\nw8M+21sAHvXgrRkQtJlVOzVhgwt36NOb1hzRlQiZB+nhv2Wbw7fbtAaADk3JAumf\nvM+YdPS1KfAFaYefm4yFd+9/C0KOkHico3LTbELO5hG0Mo/EYvtjM+Fljb42EweF\n3nAx1GSPe5Tn8p3h6RyJW5HIKozEKyfDuLS0ccB/nqT3oNjcTw==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nMIIDRTCCAi2gAwIBAgIUcC33VfaMhOnsl7avNTRVQozoVtUwDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzZaFw0yMzA2MjIwMTIyMzZaMCoxDzANBgNVBAoMBlJhdGlm\neTEXMBUGA1UEAwwOUmF0aWZ5IFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IB\nDwAwggEKAoIBAQDDFhDnyPrVDZaeRu6Tbg1a/iTwus+IuX+h8aKhKS1yHz4EF/Lz\nxCy7lNSQ9srGMMVumWuNom/ydIphff6PejZM1jFKPU6OQR/0JX5epcVIjbKa562T\nDguUxJ+h5V3EIyM4RqOWQ2g/xZo86x5TzyNJXiVdHHRvmDvUNwPpMeDjr/EHVAni\n5YQObxkJRiiZ7XOa5zz3YztVm8sSZAwPWroY1HIfvtP+KHpiNDIKSymmuJkH4SEr\nJn++iqN8na18a9DFBPTTrLPe3CxATGrMfosCMZ6LP3iFLLc/FaSpwcnugWdewsUK\nYs+sUY7jFWR7x7/1nyFWyRrQviM4f4TY+K7NAgMBAAGjYzBhMB0GA1UdDgQWBBQH\nYePW7QPP2p1utr3r6gqzEkKs+DAfBgNVHSMEGDAWgBQHYePW7QPP2p1utr3r6gqz\nEkKs+DAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwICBDANBgkqhkiG9w0B\nAQsFAAOCAQEAjKp4vx3bFaKVhAbQeTsDjWJgmXLK2vLgt74MiUwSF6t0wehlfszE\nIcJagGJsvs5wKFf91bnwiqwPjmpse/thPNBAxh1uEoh81tOklv0BN790vsVpq3t+\ncnUvWPiCZdRlAiGGFtRmKk3Keq4sM6UdiUki9s+wnxypHVb4wIpVxu5R271Lnp5I\n+rb2EQ48iblt4XZPczf/5QJdTgbItjBNbuO8WVPOqUIhCiFuAQziLtNUq3p81dHO\nQ2BPgmaitCpIUYHVYighLauBGCH8xOFzj4a4KbOxKdxyJTd0La/vRCKaUtJX67Lc\nfQYVR9HXQZ0YlmwPcmIG5v7wBfcW34NUvA==\n-----END CERTIFICATE-----\n"),
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:                "FetchSingleVersion: certificate secret disabled",
+			versionHistoryLimit: 0,
+			mockCertificateKVClient: &MockCertificateKVClient{
+				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
+					return azcertificates.GetCertificateResponse{
+						CertificateBundle: azcertificates.CertificateBundle{
+							ID:  &certID,
+							KID: stringPtr("https://testkv.vault.azure.net/keys/key1"),
+							Attributes: &azcertificates.CertificateAttributes{
+								Enabled: boolPtr(false),
+							},
+						},
+					}, nil
+				},
+			},
+			mockSecretKVClient: &MockSecretKVClient{
+				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
+					rawResponse := `{
+						"error": {
+							"code": "Forbidden",
+							"message": "Operation get is not allowed on a disabled secret.",
+							"innererror": {
+								"code": "SecretDisabled"
+							}
+						}
+					}`
+
+					httpErr := &azcore.ResponseError{
+						StatusCode: http.StatusForbidden,
+						RawResponse: &http.Response{
+							Body: io.NopCloser(strings.NewReader(rawResponse)),
+						},
+					}
+					return azsecrets.GetSecretResponse{}, httpErr
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:                "FetchSingleVersion: GetCertificate error with disabled secret",
+			versionHistoryLimit: 0,
+			mockCertificateKVClient: &MockCertificateKVClient{
+				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
+					return azcertificates.GetCertificateResponse{}, errors.New("Operation get is not allowed on a disabled secret")
+				},
+			},
+			mockSecretKVClient: &MockSecretKVClient{
+				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
+					rawResponse := `{
+						"error": {
+							"code": "Forbidden",
+							"message": "Operation get is not allowed on a disabled secret.",
+							"innererror": {
+								"code": "SecretDisabled"
+							}
+						}
+					}`
+
+					httpErr := &azcore.ResponseError{
+						StatusCode: http.StatusForbidden,
+						RawResponse: &http.Response{
+							Body: io.NopCloser(strings.NewReader(rawResponse)),
+						},
+					}
+					return azsecrets.GetSecretResponse{}, httpErr
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:                    "FetchSingleVersion: getCertsFromSecretBundle error",
+			versionHistoryLimit:     0,
+			mockCertificateKVClient: &MockCertificateKVClient{},
+			mockSecretKVClient: &MockSecretKVClient{
+				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
+					return azsecrets.GetSecretResponse{
+						SecretBundle: azsecrets.SecretBundle{
+							ID:  &secretID,
+							Kid: stringPtr("https://testkv.vault.azure.net/keys/key1"),
+							Attributes: &azsecrets.SecretAttributes{
+								Enabled: boolPtr(true),
+							},
+							Value: stringPtr("-----BEGIN CERTIFICATE-----\nMIIC8TCCAdmgAwIBAgIUaNrwbhs/I1ecqUYdzD2xuAVNdmowDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzdaFw0yNDA2MjAwMTIyMzdaMBkxFzAVBgNVBAMMDnJhdGlm\neS5kZWZhdWx0MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtskG1BUt\n4Fw2lbm53KbwZb1hnLmWdwRotZyznhhk/yrUDcq3uF6klwpk/E2IKfUKIo6doHSk\nXaEZXR68UtXygvA4wdg7xZ6kKpXy0gu+RxGE6CGtDHTyDDzITu+NBjo21ZSsyGpQ\nJeIKftUCHdwdygKf0CdJx8A29GBRpHGCmJadmt7tTzOnYjmbuPVLeqJo/Ex9qXcG\nZbxoxnxr5NCocFeKx+EbLo+k/KjdFB2PKnhgzxAaMMMP6eXPr8l5AlzkC83EmPvN\ntveuaBbamdlFkD+53TZeZlxt3GIdq93Iw/UpbQ/pvhbrztMT+UVEkm15sShfX8Xn\nL2st5A4n0V+66QIDAQABoyAwHjAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIH\ngDANBgkqhkiG9w0BAQsFAAOCAQEAGpOqozyfDSBjoTepsRroxxcZ4sq65gw45Bme\nm36BS6FG0WHIg3cMy6KIIBefTDSKrPkKNTtuF25AeGn9jM+26cnfDM78ZH0+Lnn7\n7hs0MA64WMPQaWs9/+89aM9NADV9vp2zdG4xMi6B7DruvKWyhJaNoRqK/qP6LdSQ\nw8M+21sAHvXgrRkQtJlVOzVhgwt36NOb1hzRlQiZB+nhv2Wbw7fbtAaADk3JAumf\nvM+YdPS1KfAFaYefm4yFd+9/C0KOkHico3LTbELO5hG0Mo/EYvtjM+Fljb42EweF\n3nAx1GSPe5Tn8p3h6RyJW5HIKozEKyfDuLS0ccB/nqT3oNjcTw==\n-----END CERTIFICATE-----\n-----BEGIN CERTIFICATE-----\nMIIDRTCCAi2gAwIBAgIUcC33VfaMhOnsl7avNTRVQozoVtUwDQYJKoZIhvcNAQEL\nBQAwKjEPMA0GA1UECgwGUmF0aWZ5MRcwFQYDVQQDDA5SYXRpZnkgUm9vdCBDQTAe\nFw0yMzA2MjEwMTIyMzZaFw0yMzA2MjIwMTIyMzZaMCoxDzANBgNVBAoMBlJhdGlm\neTEXMBUGA1UEAwwOUmF0aWZ5IFJvb3QgQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IB\nDwAwggEKAoIBAQDDFhDnyPrVDZaeRu6Tbg1a/iTwus+IuX+h8aKhKS1yHz4EF/Lz\nxCy7lNSQ9srGMMVumWuNom/ydIphff6PejZM1jFKPU6OQR/0JX5epcVIjbKa562T\nDguUxJ+h5V3EIyM4RqOWQ2g/xZo86x5TzyNJXiVdHHRvmDvUNwPpMeDjr/EHVAni\n5YQObxkJRiiZ7XOa5zz3YztVm8sSZAwPWroY1HIfvtP+KHpiNDIKSymmuJkH4SEr\nJn++iqN8na18a9DFBPTTrLPe3CxATGrMfosCMZ6LP3iFLLc/FaSpwcnugWdewsUK\nYs+sUY7jFWR7x7/1nyFWyRrQviM4f4TY+K7NAgMBAAGjYzBhMB0GA1UdDgQWBBQH\nYePW7QPP2p1utr3r6gqzEkKs+DAfBgNVHSMEGDAWgBQHYePW7QPP2p1utr3r6gqz\nEkKs+DAPBgNVHRMBAf8EBTADAQH/MA4GA1UdDwEB/wQEAwICBDANBgkqhkiG9w0B\nAQsFAAOCAQEAjKp4vx3bFaKVhAbQeTsDjWJgmXLK2vLgt74MiUwSF6t0wehlfszE\nIcJagGJsvs5wKFf91bnwiqwPjmpse/thPNBAxh1uEoh81tOklv0BN790vsVpq3t+\ncnUvWPiCZdRlAiGGFtRmKk3Keq4sM6UdiUki9s+wnxypHVb4wIpVxu5R271Lnp5I\n+rb2EQ48iblt4XZPczf/5QJdTgbItjBNbuO8WVPOqUIhCiFuAQziLtNUq3p81dHO\nQ2BPgmaitCpIUYHVYighLauBGCH8xOFzj4a4KbOxKdxyJTd0La/vRCKaUtJX67Lc\nfQYVR9HXQZ0YlmwPcmIG5v7wBfcW34NUvA==\n-----END CERTIFICATE-----\n"),
 						},
 					}, nil
 				},
@@ -325,7 +434,7 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name:                "Certificate enabled with multiple versions nil attributes",
+			name:                "FetchVersionHistory: Certificate enabled with multiple versions nil attributes",
 			versionHistoryLimit: 2,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
@@ -403,7 +512,7 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:                "Certificate enabled with multiple versions",
+			name:                "FetchVersionHistory: Certificate enabled with multiple versions",
 			versionHistoryLimit: 3,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
@@ -481,7 +590,8 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "No versions returned by pager",
+			name:                "FetchVersionHistory: No versions returned by pager",
+			versionHistoryLimit: 1,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				NewListCertificateVersionsPagerFunc: func(_ string, _ *azcertificates.ListCertificateVersionsOptions) *runtime.Pager[azcertificates.ListCertificateVersionsResponse] {
 					return runtime.NewPager(runtime.PagingHandler[azcertificates.ListCertificateVersionsResponse]{
@@ -497,7 +607,24 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:                    "GetSecret error",
+			name:                "FetchVersionHistory: error returned by pager",
+			versionHistoryLimit: 1,
+			mockCertificateKVClient: &MockCertificateKVClient{
+				NewListCertificateVersionsPagerFunc: func(_ string, _ *azcertificates.ListCertificateVersionsOptions) *runtime.Pager[azcertificates.ListCertificateVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azcertificates.ListCertificateVersionsResponse]{
+						More: func(_ azcertificates.ListCertificateVersionsResponse) bool {
+							return false
+						},
+						Fetcher: func(_ context.Context, _ *azcertificates.ListCertificateVersionsResponse) (azcertificates.ListCertificateVersionsResponse, error) {
+							return azcertificates.ListCertificateVersionsResponse{}, errors.New("error")
+						},
+					})
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:                    "FetchVersionHistory: GetSecret error",
 			versionHistoryLimit:     1,
 			mockCertificateKVClient: &MockCertificateKVClient{},
 			mockSecretKVClient: &MockSecretKVClient{
@@ -508,7 +635,7 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name:                "Certificate secret disabled",
+			name:                "FetchVersionHistory: Certificate secret disabled",
 			versionHistoryLimit: 1,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
@@ -547,7 +674,7 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:                    "getCertsFromSecretBundle error",
+			name:                    "FetchVersionHistory: getCertsFromSecretBundle error",
 			versionHistoryLimit:     1,
 			mockCertificateKVClient: &MockCertificateKVClient{},
 			mockSecretKVClient: &MockSecretKVClient{
@@ -566,6 +693,23 @@ func TestGetCertificates(t *testing.T) {
 				},
 			},
 			expectedErr: true,
+		},
+		{
+			name:                    "FetchVersionHistory: GetSecret nil attributes",
+			versionHistoryLimit:     1,
+			mockCertificateKVClient: &MockCertificateKVClient{},
+			mockSecretKVClient: &MockSecretKVClient{
+				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
+					return azsecrets.GetSecretResponse{
+						SecretBundle: azsecrets.SecretBundle{
+							ContentType: stringPtr("application/x-pem-file"),
+							ID:          &secretID,
+							Kid:         stringPtr("https://testkv.vault.azure.net/keys/key1"),
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
 		},
 	}
 
@@ -606,7 +750,80 @@ func TestGetKeys(t *testing.T) {
 		expectedErr         bool
 	}{
 		{
-			name:                "Key enabled with multiple versions",
+			name: "FetchSingleVersion: Key enabled",
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: &azkeys.JSONWebKey{
+								KID: &keyID,
+								Kty: &keyTY,
+								N:   []byte("n"),
+								E:   []byte("e"),
+							},
+							Attributes: &azkeys.KeyAttributes{
+								Enabled: boolPtr(true),
+							},
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "FetchSingleVersion: keyBundle nil",
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: nil,
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "FetchSingleVersion: Key disabled",
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: &azkeys.JSONWebKey{
+								KID: &keyID,
+								Kty: &keyTY,
+								N:   []byte("n"),
+								E:   []byte("e"),
+							},
+							Attributes: &azkeys.KeyAttributes{
+								Enabled: boolPtr(false),
+							},
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name: "FetchSingleVersion: getKeyFromKeyBundle error",
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: &azkeys.JSONWebKey{
+								KID: &keyID,
+							},
+							Attributes: &azkeys.KeyAttributes{
+								Enabled: boolPtr(true),
+							},
+						},
+					}, nil
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:                "FetchVersionHistory: Key enabled with multiple versions",
 			versionHistoryLimit: 3,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
@@ -672,7 +889,24 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name:                "Key enabled with multiple versions with nil attributes",
+			name:                "FetchVersionHistory: NewListKeyVersionsPager error",
+			versionHistoryLimit: 1,
+			mockKeyKVClient: &MockKeyKVClient{
+				NewListKeyVersionsPagerFunc: func(_ string, _ *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azkeys.ListKeyVersionsResponse]{
+						More: func(_ azkeys.ListKeyVersionsResponse) bool {
+							return false
+						},
+						Fetcher: func(_ context.Context, _ *azkeys.ListKeyVersionsResponse) (azkeys.ListKeyVersionsResponse, error) {
+							return azkeys.ListKeyVersionsResponse{}, errors.New("error")
+						},
+					})
+				},
+			},
+			expectedErr: true,
+		},
+		{
+			name:                "FetchVersionHistory: Key enabled with multiple versions with nil attributes",
 			versionHistoryLimit: 2,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
@@ -738,7 +972,8 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "No versions returned by pager",
+			name:                "FetchVersionHistory: No versions returned by pager",
+			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
 				NewListKeyVersionsPagerFunc: func(_ string, _ *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
 					return runtime.NewPager(runtime.PagingHandler[azkeys.ListKeyVersionsResponse]{
@@ -754,7 +989,8 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "GetKey error",
+			name:                "FetchVersionHistory: GetKey error",
+			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{}, errors.New("error")
@@ -763,7 +999,28 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name: "Key disabled",
+			name:                "FetchVersionHistory: keyBundle attributes nil",
+			versionHistoryLimit: 1,
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: &azkeys.JSONWebKey{
+								KID: &keyID,
+								Kty: &keyTY,
+								N:   []byte("n"),
+								E:   []byte("e"),
+							},
+							Attributes: nil,
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:                "FetchVersionHistory: Key disabled",
+			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{
@@ -781,7 +1038,8 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: false,
 		},
 		{
-			name: "getKeyFromKeyBundle error",
+			name:                "FetchVersionHistory: getKeyFromKeyBundle error",
+			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{
@@ -799,7 +1057,8 @@ func TestGetKeys(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name: "Key enabled",
+			name:                "FetchVersionHistory: Key enabled",
+			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{
