@@ -39,6 +39,16 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
+const rawResponse = `{
+						"error": {
+							"code": "Forbidden",
+							"message": "Operation get is not allowed on a disabled secret.",
+							"innererror": {
+								"code": "SecretDisabled"
+							}
+						}
+					}`
+
 // TestCreate tests the Create function
 func TestCreate(t *testing.T) {
 	factory := &akvKMProviderFactory{}
@@ -361,16 +371,6 @@ func TestGetCertificates(t *testing.T) {
 			},
 			mockSecretKVClient: &MockSecretKVClient{
 				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
-					rawResponse := `{
-						"error": {
-							"code": "Forbidden",
-							"message": "Operation get is not allowed on a disabled secret.",
-							"innererror": {
-								"code": "SecretDisabled"
-							}
-						}
-					}`
-
 					httpErr := &azcore.ResponseError{
 						StatusCode: http.StatusForbidden,
 						RawResponse: &http.Response{
@@ -392,16 +392,6 @@ func TestGetCertificates(t *testing.T) {
 			},
 			mockSecretKVClient: &MockSecretKVClient{
 				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
-					rawResponse := `{
-						"error": {
-							"code": "Forbidden",
-							"message": "Operation get is not allowed on a disabled secret.",
-							"innererror": {
-								"code": "SecretDisabled"
-							}
-						}
-					}`
-
 					httpErr := &azcore.ResponseError{
 						StatusCode: http.StatusForbidden,
 						RawResponse: &http.Response{
@@ -652,16 +642,6 @@ func TestGetCertificates(t *testing.T) {
 			},
 			mockSecretKVClient: &MockSecretKVClient{
 				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
-					rawResponse := `{
-						"error": {
-							"code": "Forbidden",
-							"message": "Operation get is not allowed on a disabled secret.",
-							"innererror": {
-								"code": "SecretDisabled"
-							}
-						}
-					}`
-
 					httpErr := &azcore.ResponseError{
 						StatusCode: http.StatusForbidden,
 						RawResponse: &http.Response{
@@ -1646,16 +1626,6 @@ func TestInitializeKvClient_FailureInAzCertificatesClient(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to create workload identity credential")
 }
 func TestIsSecretDisabledError(t *testing.T) {
-	rawResponse := `{
-		"error": {
-			"code": "Forbidden",
-			"message": "Operation get is not allowed on a disabled secret.",
-			"innererror": {
-				"code": "SecretDisabled"
-			}
-		}
-	}`
-
 	httpErr := &azcore.ResponseError{
 		StatusCode: http.StatusForbidden,
 		RawResponse: &http.Response{
