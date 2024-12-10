@@ -39,7 +39,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-const rawResponse = `{
+const secretDisabledRawResponse = `{
 						"error": {
 							"code": "Forbidden",
 							"message": "Operation get is not allowed on a disabled secret.",
@@ -235,6 +235,7 @@ func (m *MockKeyKVClient) NewListKeyVersionsPager(keyName string, options *azkey
 							KID: &keyID,
 							Attributes: &azkeys.KeyAttributes{
 								Created: &KeyCreated,
+								Enabled: boolPtr(true),
 							},
 						},
 					},
@@ -279,6 +280,7 @@ func (m *MockCertificateKVClient) NewListCertificateVersionsPager(certificateNam
 							ID: &certID,
 							Attributes: &azcertificates.CertificateAttributes{
 								Created: &CertCreated,
+								Enabled: boolPtr(true),
 							},
 						},
 					},
@@ -374,7 +376,7 @@ func TestGetCertificates(t *testing.T) {
 					httpErr := &azcore.ResponseError{
 						StatusCode: http.StatusForbidden,
 						RawResponse: &http.Response{
-							Body: io.NopCloser(strings.NewReader(rawResponse)),
+							Body: io.NopCloser(strings.NewReader(secretDisabledRawResponse)),
 						},
 					}
 					return azsecrets.GetSecretResponse{}, httpErr
@@ -395,7 +397,7 @@ func TestGetCertificates(t *testing.T) {
 					httpErr := &azcore.ResponseError{
 						StatusCode: http.StatusForbidden,
 						RawResponse: &http.Response{
-							Body: io.NopCloser(strings.NewReader(rawResponse)),
+							Body: io.NopCloser(strings.NewReader(secretDisabledRawResponse)),
 						},
 					}
 					return azsecrets.GetSecretResponse{}, httpErr
@@ -625,7 +627,7 @@ func TestGetCertificates(t *testing.T) {
 			expectedErr: true,
 		},
 		{
-			name:                "FetchVersionHistory: Certificate secret disabled",
+			name:                "FetchVersionHistory: Certificate version disabled",
 			versionHistoryLimit: 1,
 			mockCertificateKVClient: &MockCertificateKVClient{
 				GetCertificateFunc: func(_ context.Context, _ string, _ string) (azcertificates.GetCertificateResponse, error) {
@@ -639,16 +641,27 @@ func TestGetCertificates(t *testing.T) {
 						},
 					}, nil
 				},
-			},
-			mockSecretKVClient: &MockSecretKVClient{
-				GetSecretFunc: func(_ context.Context, _ string, _ string) (azsecrets.GetSecretResponse, error) {
-					httpErr := &azcore.ResponseError{
-						StatusCode: http.StatusForbidden,
-						RawResponse: &http.Response{
-							Body: io.NopCloser(strings.NewReader(rawResponse)),
+				NewListCertificateVersionsPagerFunc: func(_ string, _ *azcertificates.ListCertificateVersionsOptions) *runtime.Pager[azcertificates.ListCertificateVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azcertificates.ListCertificateVersionsResponse]{
+						More: func(_ azcertificates.ListCertificateVersionsResponse) bool {
+							return false
 						},
-					}
-					return azsecrets.GetSecretResponse{}, httpErr
+						Fetcher: func(_ context.Context, _ *azcertificates.ListCertificateVersionsResponse) (azcertificates.ListCertificateVersionsResponse, error) {
+							return azcertificates.ListCertificateVersionsResponse{
+								CertificateListResult: azcertificates.CertificateListResult{
+									Value: []*azcertificates.CertificateItem{
+										{
+											ID: &certID,
+											Attributes: &azcertificates.CertificateAttributes{
+												Created: &certIDCreated,
+												Enabled: boolPtr(false),
+											},
+										},
+									},
+								},
+							}, nil
+						},
+					})
 				},
 			},
 			expectedErr: false,
@@ -1002,17 +1015,27 @@ func TestGetKeys(t *testing.T) {
 			name:                "FetchVersionHistory: Key disabled",
 			versionHistoryLimit: 1,
 			mockKeyKVClient: &MockKeyKVClient{
-				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
-					return azkeys.GetKeyResponse{
-						KeyBundle: azkeys.KeyBundle{
-							Key: &azkeys.JSONWebKey{
-								KID: &keyID,
-							},
-							Attributes: &azkeys.KeyAttributes{
-								Enabled: boolPtr(false),
-							},
+				NewListKeyVersionsPagerFunc: func(_ string, _ *azkeys.ListKeyVersionsOptions) *runtime.Pager[azkeys.ListKeyVersionsResponse] {
+					return runtime.NewPager(runtime.PagingHandler[azkeys.ListKeyVersionsResponse]{
+						More: func(_ azkeys.ListKeyVersionsResponse) bool {
+							return false
 						},
-					}, nil
+						Fetcher: func(_ context.Context, _ *azkeys.ListKeyVersionsResponse) (azkeys.ListKeyVersionsResponse, error) {
+							return azkeys.ListKeyVersionsResponse{
+								KeyListResult: azkeys.KeyListResult{
+									Value: []*azkeys.KeyItem{
+										{
+											KID: &keyID,
+											Attributes: &azkeys.KeyAttributes{
+												Enabled: boolPtr(false),
+												Created: &keyCreated,
+											},
+										},
+									},
+								},
+							}, nil
+						},
+					})
 				},
 			},
 			expectedErr: false,
@@ -1039,6 +1062,28 @@ func TestGetKeys(t *testing.T) {
 		{
 			name:                "FetchVersionHistory: Key enabled",
 			versionHistoryLimit: 1,
+			mockKeyKVClient: &MockKeyKVClient{
+				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
+					return azkeys.GetKeyResponse{
+						KeyBundle: azkeys.KeyBundle{
+							Key: &azkeys.JSONWebKey{
+								KID: &keyID,
+								Kty: &keyTY,
+								N:   []byte("n"),
+								E:   []byte("e"),
+							},
+							Attributes: &azkeys.KeyAttributes{
+								Enabled: boolPtr(true),
+							},
+						},
+					}, nil
+				},
+			},
+			expectedErr: false,
+		},
+		{
+			name:                "FetchVersionHistory: versionHistoryLimit greater than versions returned",
+			versionHistoryLimit: 3,
 			mockKeyKVClient: &MockKeyKVClient{
 				GetKeyFunc: func(_ context.Context, _ string, _ string) (azkeys.GetKeyResponse, error) {
 					return azkeys.GetKeyResponse{
@@ -1629,7 +1674,7 @@ func TestIsSecretDisabledError(t *testing.T) {
 	httpErr := &azcore.ResponseError{
 		StatusCode: http.StatusForbidden,
 		RawResponse: &http.Response{
-			Body: io.NopCloser(strings.NewReader(rawResponse)),
+			Body: io.NopCloser(strings.NewReader(secretDisabledRawResponse)),
 		},
 	}
 
