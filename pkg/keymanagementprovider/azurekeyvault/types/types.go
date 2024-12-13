@@ -59,3 +59,7 @@ func (k KeyVaultValueVersionHistory) Sort() {
 		return k[i].Created.Before(k[j].Created)
 	})
 }
+
+func (k KeyVaultValueVersionHistory) Len() int {
+	return len(k)
+}
