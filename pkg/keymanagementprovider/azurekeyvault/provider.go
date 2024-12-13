@@ -219,12 +219,12 @@ func (s *akvKMProvider) processCertificate(ctx context.Context, keyVaultCert typ
 	logger.GetLogger(ctx, logOpt).Debugf("fetching secret from key vault, certName %v, certVersion %v, vaultURI: %v", keyVaultCert.Name, keyVaultCert.Version, s.vaultURI)
 	startTime := time.Now()
 	if keyVaultCert.VersionHistoryLimit == 0 {
-		return s.processSingleCertificateVersion(ctx, keyVaultCert, certsMap, certsStatus, startTime)
+		return s.processCertificateVersion(ctx, keyVaultCert, certsMap, certsStatus, startTime)
 	}
-	return s.processCertificateVersionHistory(ctx, keyVaultCert, certsMap, certsStatus, startTime)
+	return s.processCertificateVersions(ctx, keyVaultCert, certsMap, certsStatus, startTime)
 }
 
-func (s *akvKMProvider) processSingleCertificateVersion(ctx context.Context, keyVaultCert types.KeyVaultValue, certsMap map[keymanagementprovider.KMPMapKey][]*x509.Certificate, certsStatus *[]map[string]string, startTime time.Time) error {
+func (s *akvKMProvider) processCertificateVersion(ctx context.Context, keyVaultCert types.KeyVaultValue, certsMap map[keymanagementprovider.KMPMapKey][]*x509.Certificate, certsStatus *[]map[string]string, startTime time.Time) error {
 
 	secretResponse, err := s.secretKVClient.GetSecret(ctx, keyVaultCert.Name, keyVaultCert.Version)
 	if err != nil {
@@ -250,7 +250,6 @@ func (s *akvKMProvider) processSingleCertificateVersion(ctx context.Context, key
 	*certsStatus = append(*certsStatus, certProperty...)
 	certMapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: version, Enabled: isEnabled}
 	certsMap[certMapKey] = certResult
-	//TODO: possible to return processSecretBundle?
 	return nil
 }
 
@@ -272,14 +271,21 @@ func (s *akvKMProvider) handleDisabledSecret(ctx context.Context, keyVaultCert t
 	certProperty := getStatusProperty(keyVaultCert.Name, keyVaultCert.Version, lastRefreshed, isEnabled)
 	*certsStatus = append(*certsStatus, certProperty)
 	mapKey := keymanagementprovider.KMPMapKey{Name: keyVaultCert.Name, Version: keyVaultCert.Version, Enabled: isEnabled}
-	keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey)
+	keymanagementprovider.DeleteCertificateFromMap(s.resource, mapKey) //TODO: unit test
 	return nil
 }
 
-func (s *akvKMProvider) processCertificateVersionHistory(ctx context.Context, keyVaultCert types.KeyVaultValue, certsMap map[keymanagementprovider.KMPMapKey][]*x509.Certificate, certsStatus *[]map[string]string, startTime time.Time) error {
-	versionHistory, err := s.fetchCertificateVersionHistory(ctx, keyVaultCert.Name, keyVaultCert.VersionHistoryLimit)
+func (s *akvKMProvider) processCertificateVersions(ctx context.Context, keyVaultCert types.KeyVaultValue, certsMap map[keymanagementprovider.KMPMapKey][]*x509.Certificate, certsStatus *[]map[string]string, startTime time.Time) error {
+	versionHistory, err := s.fetchCertificateVersionHistory(ctx, keyVaultCert.Name)
 	if err != nil {
 		return fmt.Errorf("failed to fetch version history for certificate %s: %w", keyVaultCert.Name, err)
+	}
+
+	trimVersionHistory(&versionHistory, keyVaultCert.VersionHistoryLimit, keyVaultCert.Version)
+
+	if len(versionHistory) == 0 {
+		logger.GetLogger(ctx, logOpt).Warnf("no versions found for certificate %s", keyVaultCert.Name)
+		return nil
 	}
 
 	// get the latest versions of the certificate up to the limit
@@ -318,8 +324,7 @@ func (s *akvKMProvider) processCertificateVersionHistory(ctx context.Context, ke
 	return nil
 }
 
-func (s *akvKMProvider) fetchCertificateVersionHistory(ctx context.Context, certName string, limit int) (types.KeyVaultValueVersionHistory, error) {
-	// var versionHistory []VersionInfo
+func (s *akvKMProvider) fetchCertificateVersionHistory(ctx context.Context, certName string) (types.KeyVaultValueVersionHistory, error) {
 	var versionHistory types.KeyVaultValueVersionHistory
 	certVersionPager := s.certificateKVClient.NewListCertificateVersionsPager(certName, &azcertificates.ListCertificateVersionsOptions{})
 	for certVersionPager.More() {
@@ -346,18 +351,6 @@ func (s *akvKMProvider) fetchCertificateVersionHistory(ctx context.Context, cert
 	// sortVersionHistory(versionHistory)
 	versionHistory.Sort()
 
-	if len(versionHistory) == 0 {
-		logger.GetLogger(ctx, logOpt).Infof("no versions found for certificate %s", certName)
-		return nil, nil
-	}
-
-	// Ensure that the versionHistoryLimit is not greater than the number of versions to avoid out of bounds error
-	if limit > len(versionHistory) {
-		limit = len(versionHistory)
-	}
-	// Shorten the version history to the limit
-	versionHistory = versionHistory[len(versionHistory)-limit:]
-
 	return versionHistory, nil
 }
 
@@ -378,12 +371,12 @@ func (s *akvKMProvider) processKey(ctx context.Context, keyVaultKey types.KeyVau
 	logger.GetLogger(ctx, logOpt).Debugf("fetching key from key vault, keyName %v,  keyvault %v", keyVaultKey.Name, s.vaultURI)
 	startTime := time.Now()
 	if keyVaultKey.VersionHistoryLimit == 0 {
-		return s.processSingleKeyVersion(ctx, keyVaultKey, keysMap, keysStatus, &startTime)
+		return s.processKeyVersion(ctx, keyVaultKey, keysMap, keysStatus, &startTime)
 	}
-	return s.processKeyVersionHistory(ctx, keyVaultKey, keysMap, keysStatus, &startTime)
+	return s.processKeyVersions(ctx, keyVaultKey, keysMap, keysStatus, &startTime)
 }
 
-func (s *akvKMProvider) processSingleKeyVersion(ctx context.Context, keyVaultKey types.KeyVaultValue, keysMap map[keymanagementprovider.KMPMapKey]crypto.PublicKey, keysStatus *[]map[string]string, startTime *time.Time) error {
+func (s *akvKMProvider) processKeyVersion(ctx context.Context, keyVaultKey types.KeyVaultValue, keysMap map[keymanagementprovider.KMPMapKey]crypto.PublicKey, keysStatus *[]map[string]string, startTime *time.Time) error {
 	keyResponse, err := s.keyKVClient.GetKey(ctx, keyVaultKey.Name, keyVaultKey.Version)
 	if err != nil {
 		return fmt.Errorf("failed to get key objectName:%s, objectVersion:%s, error: %w", keyVaultKey.Name, keyVaultKey.Version, err)
@@ -420,10 +413,17 @@ func (s *akvKMProvider) processSingleKeyVersion(ctx context.Context, keyVaultKey
 	return nil
 }
 
-func (s *akvKMProvider) processKeyVersionHistory(ctx context.Context, keyVaultKey types.KeyVaultValue, keysMap map[keymanagementprovider.KMPMapKey]crypto.PublicKey, keysStatus *[]map[string]string, startTime *time.Time) error {
-	versionHistory, err := s.fetchKeyVersionHistory(ctx, keyVaultKey.Name, keyVaultKey.VersionHistoryLimit)
+func (s *akvKMProvider) processKeyVersions(ctx context.Context, keyVaultKey types.KeyVaultValue, keysMap map[keymanagementprovider.KMPMapKey]crypto.PublicKey, keysStatus *[]map[string]string, startTime *time.Time) error {
+	versionHistory, err := s.fetchKeyVersionHistory(ctx, keyVaultKey.Name)
 	if err != nil {
 		return fmt.Errorf("failed to fetch version history for key %s: %w", keyVaultKey.Name, err)
+	}
+
+	trimVersionHistory(&versionHistory, keyVaultKey.VersionHistoryLimit, keyVaultKey.Version)
+
+	if len(versionHistory) == 0 {
+		logger.GetLogger(ctx, logOpt).Warnf("no versions found for key %s", keyVaultKey.Name)
+		return nil
 	}
 
 	// get the latest versions of the key up to the limit
@@ -461,7 +461,7 @@ func (s *akvKMProvider) processKeyVersionHistory(ctx context.Context, keyVaultKe
 	return nil
 }
 
-func (s *akvKMProvider) fetchKeyVersionHistory(ctx context.Context, keyName string, limit int) (types.KeyVaultValueVersionHistory, error) {
+func (s *akvKMProvider) fetchKeyVersionHistory(ctx context.Context, keyName string) (types.KeyVaultValueVersionHistory, error) {
 	var versionHistory types.KeyVaultValueVersionHistory
 	keyVersionPager := s.keyKVClient.NewListKeyVersionsPager(keyName, &azkeys.ListKeyVersionsOptions{})
 	for keyVersionPager.More() {
@@ -471,7 +471,7 @@ func (s *akvKMProvider) fetchKeyVersionHistory(ctx context.Context, keyName stri
 		}
 		for _, key := range pager.Value {
 			if !isValidKeyItem(key) {
-				logger.GetLogger(ctx, logOpt).Warnf("key %s, version %s, found invalid key object, id, attributes or created time must not be nil", keyName, key.KID.Version())
+				logger.GetLogger(ctx, logOpt).Warnf("key %s, version %s, invalid: ID, attributes, created time, or enabled field must not be nil.", keyName, key.KID.Version())
 				continue
 			}
 			versionInfo := types.KeyVaultValueVersion{
@@ -486,18 +486,6 @@ func (s *akvKMProvider) fetchKeyVersionHistory(ctx context.Context, keyName stri
 	// Pager results are not sorted by created time, so we sort them here
 	// in ascending order (oldest to newest)
 	versionHistory.Sort()
-
-	if len(versionHistory) == 0 {
-		logger.GetLogger(ctx, logOpt).Infof("no versions found for key %s", keyName)
-		return nil, nil
-	}
-
-	// Ensure that the versionHistoryLimit is not greater than the number of versions to avoid out of bounds error
-	if limit > len(versionHistory) {
-		limit = len(versionHistory)
-	}
-	// Shorten the version history to the limit
-	versionHistory = versionHistory[len(versionHistory)-limit:]
 
 	return versionHistory, nil
 }
@@ -565,10 +553,6 @@ func initializeKvClient(keyVaultURI, tenantID, clientID string, credProvider azc
 // Parse the secret bundle and return an array of certificates
 // In a certificate chain scenario, all certificates from root to leaf will be returned
 func getCertsFromSecretBundle(ctx context.Context, secretBundle azsecrets.SecretBundle, certName string, enabled bool) ([]*x509.Certificate, []map[string]string, error) {
-	if secretBundle.ContentType == nil || secretBundle.Value == nil || secretBundle.ID == nil {
-		return nil, nil, re.ErrorCodeCertInvalid.NewError(re.KeyManagementProvider, ProviderName, re.EmptyLink, nil, "found invalid secret bundle for certificate  %s, contentType, value, and id must not be nil", re.HideStackTrace)
-	}
-
 	version := getObjectVersion(string(*secretBundle.ID))
 
 	// This aligns with notation akv implementation
@@ -715,29 +699,42 @@ func isSecretDisabledError(err error) bool {
 	return false
 }
 
-//TODO: remove
-// sortVersionHistory sorts the version history by created time
-// func sortVersionHistory(sortedVersionHistory []VersionInfo) {
-// 	sort.Slice(sortedVersionHistory, func(i, j int) bool {
-// 		return sortedVersionHistory[i].Created.Before(sortedVersionHistory[j].Created)
-// 	})
-// }
+func trimVersionHistory(versionHistory *types.KeyVaultValueVersionHistory, limit int, version string) {
+	if version == "" {
+		//Ensure that the versionHistoryLimit is not greater than the number of versions to avoid out of bounds error
+		if limit > len(*versionHistory) {
+			limit = len(*versionHistory)
+		}
 
-// GetVersions returns the sorted versions of the object
-// func GetVersions(versionHistory []VersionInfo) []string {
-// 	sortedVersions := make([]string, 0, len(versionHistory))
-// 	for _, version := range versionHistory {
-// 		sortedVersions = append(sortedVersions, version.Version)
-// 	}
-// 	return sortedVersions
-// }
+		// Shorten the version history to the limit
+		*versionHistory = (*versionHistory)[len(*versionHistory)-limit:]
+		return
+	}
+	// Find the index of the specified version
+	versionIndex := -1
+	for i, v := range *versionHistory {
+		if v.Version == version {
+			versionIndex = i
+			break
+		}
+	}
+
+	// Calculate the start index to include up to `versionHistoryLimit` older versions
+	start := versionIndex - limit
+	if start < 0 {
+		start = 0 // Ensure we don't go out of bounds
+	}
+
+	// Create the slice including the specified version as the tail
+	*versionHistory = (*versionHistory)[start : versionIndex+1]
+}
 
 func isValidCertificateBundle(certBundle *azcertificates.CertificateBundle) bool {
 	return certBundle != nil && certBundle.Attributes != nil && certBundle.Attributes.Enabled != nil && certBundle.ID != nil
 }
 
 func isValidSecretBundle(secretBundle *azsecrets.SecretBundle) bool {
-	return secretBundle != nil && secretBundle.Attributes != nil && secretBundle.Attributes.Enabled != nil
+	return secretBundle != nil && secretBundle.Attributes != nil && secretBundle.Attributes.Enabled != nil && secretBundle.ContentType != nil && secretBundle.Value != nil && secretBundle.ID != nil
 }
 
 func isValidCertificateItem(cert *azcertificates.CertificateItem) bool {
