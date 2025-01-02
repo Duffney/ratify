@@ -84,13 +84,6 @@ type akvKMProvider struct {
 	certificateKVClient certificateKVClient
 }
 
-// VersionInfo holds the version and created time of an azure key vault object
-type VersionInfo struct {
-	Version string
-	Created time.Time
-	Enabled bool
-}
-
 type akvKMProviderFactory struct{}
 
 // kvClient is an interface to interact with the keyvault client used for mocking purposes
