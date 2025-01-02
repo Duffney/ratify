@@ -14,6 +14,11 @@ limitations under the License.
 */
 package types
 
+import (
+	"sort"
+	"time"
+)
+
 const (
 	// Static string for certificate type
 	CertificateType = "CERTIFICATE"
@@ -39,4 +44,22 @@ type KeyVaultValue struct {
 	Version string `json:"version" yaml:"version"`
 	// the number of versions to keep in the cache
 	VersionHistoryLimit int `json:"versionHistoryLimit" yaml:"versionHistoryLimit"`
+}
+
+type KeyVaultValueVersion struct {
+	Version string
+	Created time.Time
+	Enabled bool
+}
+
+type KeyVaultValueVersionHistory []KeyVaultValueVersion
+
+func (k KeyVaultValueVersionHistory) Sort() {
+	sort.Slice(k, func(i, j int) bool {
+		return k[i].Created.Before(k[j].Created)
+	})
+}
+
+func (k KeyVaultValueVersionHistory) Len() int {
+	return len(k)
 }
